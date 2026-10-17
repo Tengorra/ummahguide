@@ -48,10 +48,10 @@ export function savePublished(p: Published) {
 }
 
 export type JamatRow = { prayer: SalahName; adhan: string; jamat: string; source: "published" | "estimated" };
-export type JamatDay = { rows: JamatRow[]; jumuah: string[]; verified: boolean; updatedAt?: string };
+export type JamatDay = { rows: JamatRow[]; jumuah: string[]; verified: boolean; updatedAt?: string; tz?: string };
 
-/** Build today's Adhan vs Jamat table for a masjid. */
-export function buildJamatDay(timings: Timings, published: Published | null): JamatDay {
+/** Build today's Adhan vs Jamat table for a masjid. `tz` is the masjid's time zone (from the prayer-times lookup). */
+export function buildJamatDay(timings: Timings, published: Published | null, tz?: string): JamatDay {
   const rows: JamatRow[] = SALAH.map((p) => {
     const adhan = timings[p];
     if (published) {
@@ -62,22 +62,21 @@ export function buildJamatDay(timings: Timings, published: Published | null): Ja
     }
     return { prayer: p, adhan, jamat: addMinutes(adhan, DEFAULT_OFFSETS[p]), source: "estimated" };
   });
-  return { rows, jumuah: published?.jumuah ?? [], verified: !!published, updatedAt: published?.updatedAt };
+  return { rows, jumuah: published?.jumuah ?? [], verified: !!published, updatedAt: published?.updatedAt, tz };
 }
 
 export type NextJamat = { prayer: SalahName; time: string; at: Date; msUntil: number; isTomorrow: boolean; source: JamatRow["source"] };
 
-/** The next Jamat from now; after Isha, tomorrow's Fajr. */
+/** The next Jamat from now; after Isha, tomorrow's Fajr. Uses the masjid's time zone when known. */
 export function nextJamat(day: JamatDay, now: Date = new Date()): NextJamat {
   for (const r of day.rows) {
-    const at = timeToDate(r.jamat, now);
+    const at = timeToDate(r.jamat, now, day.tz);
     if (at.getTime() > now.getTime()) {
       return { prayer: r.prayer, time: r.jamat, at, msUntil: at.getTime() - now.getTime(), isTomorrow: false, source: r.source };
     }
   }
   const fajr = day.rows[0];
-  const at = timeToDate(fajr.jamat, now);
-  at.setDate(at.getDate() + 1);
+  const at = new Date(timeToDate(fajr.jamat, now, day.tz).getTime() + 86400000);
   return { prayer: "Fajr", time: fajr.jamat, at, msUntil: at.getTime() - now.getTime(), isTomorrow: true, source: fajr.source };
 }
 

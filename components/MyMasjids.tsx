@@ -17,8 +17,8 @@ function IconWork(p: { size?: number; className?: string }) {
   );
 }
 
-function Row({ slot, m, lat, lng, timings, now, divider }: { slot: Slot; m: MyMasjid; lat: number; lng: number; timings: Timings | null; now: Date; divider: boolean }) {
-  const nj = timings ? nextJamat(buildJamatDay(timings, loadPublished(m.id)), now) : null;
+function Row({ slot, m, lat, lng, timings, tz, now, divider }: { slot: Slot; m: MyMasjid; lat: number; lng: number; timings: Timings | null; tz?: string; now: Date; divider: boolean }) {
+  const nj = timings ? nextJamat(buildJamatDay(timings, loadPublished(m.id), tz), now) : null;
   const km = haversineKm(lat, lng, m.lat, m.lng);
   return (
     <Link href={`/masjid/${encodeURIComponent(m.id)}`} className={`flex items-center gap-3 px-4 py-2.5 text-ink ${divider ? "border-t border-ink/5" : ""}`}>
@@ -51,7 +51,7 @@ function Row({ slot, m, lat, lng, timings, now, divider }: { slot: Slot; m: MyMa
  * Compact strip of the user's Home and Work masjids — shown only for the ones that are NOT already
  * in the "near you" list, so their Jamat is always one glance away without duplicating rows.
  */
-export default function MyMasjids({ lat, lng, timings, excludeIds = [] }: { lat: number; lng: number; timings: Timings | null; excludeIds?: string[] }) {
+export default function MyMasjids({ lat, lng, timings, tz, excludeIds = [] }: { lat: number; lng: number; timings: Timings | null; tz?: string; excludeIds?: string[] }) {
   const { home, work } = useMyMasjids();
   const now = useNow(60000);
   const rows: Array<{ slot: Slot; m: MyMasjid }> = [];
@@ -61,7 +61,7 @@ export default function MyMasjids({ lat, lng, timings, excludeIds = [] }: { lat:
   return (
     <section aria-label="Your masjids" className="card overflow-hidden">
       {rows.map((r, i) => (
-        <Row key={r.slot} slot={r.slot} m={r.m} lat={lat} lng={lng} timings={timings} now={now} divider={i > 0} />
+        <Row key={r.slot} slot={r.slot} m={r.m} lat={lat} lng={lng} timings={timings} tz={tz} now={now} divider={i > 0} />
       ))}
     </section>
   );

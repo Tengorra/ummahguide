@@ -18,6 +18,35 @@ export function loadLocation(): Loc {
   return readJSON<Loc>(KEY, DEFAULT_LOC);
 }
 
+const TZ_DERIVED = "ug.loc.tzderived";
+
+/**
+ * First run with no saved location: default to the city named by the phone's own time zone
+ * (Europe/London → London, America/Toronto → Toronto) instead of a fixed city, so a user
+ * abroad sees sensible times before granting GPS. Runs once; a real fix or search replaces it.
+ */
+export async function deriveDefaultFromTimezone(): Promise<Loc | null> {
+  if (typeof window === "undefined") return null;
+  if (readJSON(TZ_DERIVED, false)) return null;
+  writeJSON(TZ_DERIVED, true);
+  const saved = loadLocation();
+  if (saved.source !== "default") return null;
+  let tz = "";
+  try {
+    tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    return null;
+  }
+  if (!tz || tz === "America/Regina") return null;
+  const city = tz.split("/").pop()?.replace(/_/g, " ");
+  if (!city) return null;
+  const hit = await geocodeCity(city);
+  if (!hit) return null;
+  const loc: Loc = { ...hit, source: "default" };
+  saveLocation(loc);
+  return loc;
+}
+
 export function saveLocation(loc: Loc) {
   writeJSON(KEY, loc);
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("ug:location", { detail: loc }));
@@ -59,6 +88,7 @@ export function useLocation(autoAsk = true) {
     setLocState(loadLocation());
     const onChange = (e: Event) => setLocState((e as CustomEvent<Loc>).detail);
     window.addEventListener("ug:location", onChange);
+    void deriveDefaultFromTimezone();
     return () => window.removeEventListener("ug:location", onChange);
   }, []);
 

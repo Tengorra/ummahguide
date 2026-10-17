@@ -43,7 +43,7 @@ export function useSettings() {
 }
 
 export type Hijri = { day: number; month: string; year: number; weekday: string; monthNumber: number };
-export type DayTimes = { date: string; timings: Timings; hijri: Hijri; gregorianWeekday: string };
+export type DayTimes = { date: string; timings: Timings; hijri: Hijri; gregorianWeekday: string; tz: string };
 
 type RawDay = {
   timings: Record<string, string>;
@@ -51,12 +51,19 @@ type RawDay = {
     gregorian: { date: string; weekday: { en: string } };
     hijri: { day: string; month: { en: string; number: number }; year: string; weekday: { en: string } };
   };
+  meta?: { timezone?: string };
 };
+
+/** "Jumādá al-ūlá" → "Jumada al-Ula" style: strip diacritics, keep it readable. */
+function plainMonth(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\b([a-z])/g, (m) => m.toUpperCase()).replace(/\bAl-/g, "al-");
+}
 
 function toDay(raw: RawDay, isoDate: string): DayTimes {
   const t = raw.timings;
   return {
     date: isoDate,
+    tz: raw.meta?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     timings: {
       Fajr: cleanTime(t.Fajr),
       Sunrise: cleanTime(t.Sunrise),
@@ -67,7 +74,7 @@ function toDay(raw: RawDay, isoDate: string): DayTimes {
     },
     hijri: {
       day: Number(raw.date.hijri.day),
-      month: raw.date.hijri.month.en,
+      month: plainMonth(raw.date.hijri.month.en),
       monthNumber: raw.date.hijri.month.number,
       year: Number(raw.date.hijri.year),
       weekday: raw.date.hijri.weekday.en,

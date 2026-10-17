@@ -7,7 +7,7 @@ import { fetchMosques, type Mosque } from "@/lib/overpass";
 import { buildJamatDay, loadPublished, nextJamat, useNow } from "@/lib/jamat";
 import { fmt12, type Timings } from "@/lib/prayer";
 
-export default function NearestMasjid({ lat, lng, timings }: { lat: number; lng: number; timings: Timings | null }) {
+export default function NearestMasjid({ lat, lng, timings, tz }: { lat: number; lng: number; timings: Timings | null; tz?: string }) {
   const [m, setM] = useState<Mosque | null | undefined>(undefined);
   const now = useNow(60000);
 
@@ -21,7 +21,7 @@ export default function NearestMasjid({ lat, lng, timings }: { lat: number; lng:
     };
   }, [lat, lng]);
 
-  const nj = m && timings ? nextJamat(buildJamatDay(timings, loadPublished(m.id)), now) : null;
+  const nj = m && timings ? nextJamat(buildJamatDay(timings, loadPublished(m.id), tz), now) : null;
 
   return (
     <Link href={m ? `/masjid/${m.id}` : "/masjid"} className="card flex flex-col gap-2.5 p-4 text-ink">

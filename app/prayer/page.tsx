@@ -40,7 +40,7 @@ export default function PrayerPage() {
     if (v) await ensureNotificationPermission();
   }
 
-  const nx = day ? nextPrayer(day.timings, now) : null;
+  const nx = day ? nextPrayer(day.timings, now, day.tz) : null;
 
   return (
     <main className="relative min-h-dvh bg-em-900 pb-[120px] text-ivory">
@@ -88,7 +88,7 @@ export default function PrayerPage() {
         {view === "today" && day && nx && (
           <section aria-label="Today’s prayers" className="rounded-3xl border border-white/10 bg-white/5 px-4 py-1.5">
             {PRAYERS.map((p, i) => {
-              const at = timeToDate(day.timings[p], now).getTime();
+              const at = timeToDate(day.timings[p], now, day.tz).getTime();
               const passed = at <= now.getTime();
               const isNext = p === nx.name && !nx.isTomorrow;
               const isSalah = p !== "Sunrise";

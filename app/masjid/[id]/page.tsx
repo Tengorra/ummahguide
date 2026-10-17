@@ -97,7 +97,7 @@ function MasjidProfile() {
     );
   }
 
-  const jd = day ? buildJamatDay(day.timings, published) : null;
+  const jd = day ? buildJamatDay(day.timings, published, day.tz) : null;
   const nj = jd ? nextJamat(jd, now) : null;
   const fac = m ? facilitiesOf(m) : [];
 

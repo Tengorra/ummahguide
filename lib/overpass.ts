@@ -14,8 +14,30 @@ export type Mosque = {
   tags: Record<string, string>;
 };
 
-const ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+/** Public Overpass mirrors, tried in order; the first that answers wins. */
+const ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+  "https://overpass.osm.jp/api/interpreter",
+];
 const LAST_KEY = "ug.mosques.last";
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("timeout")), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
 
 type OverpassEl = {
   type: "node" | "way" | "relation";
@@ -28,19 +50,27 @@ type OverpassEl = {
 
 async function runOverpass(query: string): Promise<OverpassEl[]> {
   let lastErr: unknown;
-  for (const ep of ENDPOINTS) {
-    try {
-      const r = await fetch(ep, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `data=${encodeURIComponent(query)}`,
-      });
-      if (!r.ok) throw new Error(`Overpass ${r.status}`);
-      const j = await r.json();
-      return j.elements as OverpassEl[];
-    } catch (e) {
-      lastErr = e;
+  // Two passes over the mirrors: public Overpass servers are often briefly overloaded.
+  for (let pass = 0; pass < 2; pass++) {
+    for (const ep of ENDPOINTS) {
+      try {
+        const r = await withTimeout(
+          fetch(ep, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `data=${encodeURIComponent(query)}`,
+          }),
+          20000,
+        );
+        if (!r.ok) throw new Error(`Overpass ${r.status}`);
+        const j = await r.json();
+        if (!Array.isArray(j.elements)) throw new Error("Overpass: bad response");
+        return j.elements as OverpassEl[];
+      } catch (e) {
+        lastErr = e;
+      }
     }
+    await new Promise((res) => setTimeout(res, 1500));
   }
   throw lastErr instanceof Error ? lastErr : new Error("Overpass unavailable");
 }
@@ -67,12 +97,8 @@ export async function fetchMosques(lat: number, lng: number, radiusM = 15000): P
   const clng = snap(lng);
   const key = `ug.mosques.${clat.toFixed(2)}.${clng.toFixed(2)}.${radiusM}`;
   const list = await cached(key, 24 * 3600_000, async () => {
-    const q = `[out:json][timeout:25];
-(
-  node["amenity"="place_of_worship"]["religion"="muslim"](around:${radiusM},${clat},${clng});
-  way["amenity"="place_of_worship"]["religion"="muslim"](around:${radiusM},${clat},${clng});
-  relation["amenity"="place_of_worship"]["religion"="muslim"](around:${radiusM},${clat},${clng});
-);
+    const q = `[out:json][timeout:20];
+nwr["amenity"="place_of_worship"]["religion"="muslim"](around:${radiusM},${clat},${clng});
 out center tags;`;
     const els = await runOverpass(q);
     return els.map((e) => toMosque(e, clat, clng)).filter((m): m is Mosque => !!m);

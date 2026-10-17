@@ -55,7 +55,7 @@ export default function MasjidFinderPage() {
     if (!mosques) return [];
     const withNext = mosques.map((raw) => {
       const m = { ...raw, distanceKm: haversineKm(center.lat, center.lng, raw.lat, raw.lng) };
-      const nj: NextJamat | null = day ? nextJamat(buildJamatDay(day.timings, loadPublished(m.id)), now) : null;
+      const nj: NextJamat | null = day ? nextJamat(buildJamatDay(day.timings, loadPublished(m.id), day.tz), now) : null;
       return { m, nj };
     });
     const filtered = onlyWheelchair ? withNext.filter((r) => facilitiesOf(r.m).includes("Wheelchair")) : withNext;

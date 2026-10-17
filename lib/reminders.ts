@@ -67,8 +67,11 @@ export function useReminderScheduler() {
       const loc = loadLocation();
       const settings = loadSettings();
       let timings;
+      let tz: string | undefined;
       try {
-        timings = (await fetchDay(loc.lat, loc.lng, new Date(), settings)).timings;
+        const d = await fetchDay(loc.lat, loc.lng, new Date(), settings);
+        timings = d.timings;
+        tz = d.tz;
       } catch {
         return;
       }
@@ -79,7 +82,7 @@ export function useReminderScheduler() {
       if (azan) {
         for (const p of SALAH) {
           if (!azan[p]) continue;
-          const at = timeToDate(timings[p]).getTime();
+          const at = timeToDate(timings[p], new Date(), tz).getTime();
           const k = `${today}.azan.${p}`;
           if (!fired[k] && at - now <= 0 && now - at < 90000) {
             fired[k] = true;
@@ -88,10 +91,10 @@ export function useReminderScheduler() {
         }
       }
       for (const r of reminders) {
-        const day = buildJamatDay(timings, loadPublished(r.masjidId));
+        const day = buildJamatDay(timings, loadPublished(r.masjidId), tz);
         for (const row of day.rows) {
           if (!r.prayers.includes(row.prayer)) continue;
-          const at = timeToDate(row.jamat).getTime();
+          const at = timeToDate(row.jamat, new Date(), tz).getTime();
           const lead = r.leadMin * 60000;
           const k = `${today}.${r.masjidId}.${row.prayer}`;
           if (!fired[k] && at - now <= lead && at - now > lead - 90000) {

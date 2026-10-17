@@ -12,12 +12,50 @@ export function cleanTime(raw: string): string {
   return m ? m[0].padStart(5, "0") : raw;
 }
 
-export function timeToDate(hhmm: string, base: Date = new Date()): Date {
+/** Calendar fields of an instant as seen in an IANA time zone. */
+function zoneParts(date: Date, tz: string): { y: number; m: number; d: number; hh: number; mm: number; ss: number } {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      .formatToParts(date)
+      .map((x) => [x.type, x.value]),
+  );
+  return { y: +p.year, m: +p.month, d: +p.day, hh: +p.hour % 24, mm: +p.minute, ss: +p.second };
+}
+
+function zoneOffsetMs(date: Date, tz: string): number {
+  const z = zoneParts(date, tz);
+  return Date.UTC(z.y, z.m - 1, z.d, z.hh, z.mm, z.ss) - date.getTime();
+}
+
+/** The instant at which a wall-clock date/time occurs in a time zone. */
+export function zonedToInstant(y: number, m: number, d: number, hh: number, mm: number, tz: string): Date {
+  const guess = Date.UTC(y, m - 1, d, hh, mm);
+  let off = zoneOffsetMs(new Date(guess), tz);
+  off = zoneOffsetMs(new Date(guess - off), tz);
+  return new Date(guess - off);
+}
+
+/**
+ * "HH:MM" on the day of `base` → an absolute instant. When `tz` (the LOCATION's zone) is given,
+ * the time is interpreted in that zone, so a London phone looking at Saskatoon still counts
+ * down correctly. Without `tz`, the phone's own zone is used.
+ */
+export function timeToDate(hhmm: string, base: Date = new Date(), tz?: string): Date {
   const [h, m] = cleanTime(hhmm).split(":").map(Number);
+  if (tz) {
+    try {
+      const z = zoneParts(base, tz);
+      return zonedToInstant(z.y, z.m, z.d, h, m, tz);
+    } catch {
+      /* unknown zone: fall through to local */
+    }
+  }
   const d = new Date(base);
   d.setHours(h, m, 0, 0);
   return d;
 }
+
+const DAY_MS = 86400000;
 
 export function addMinutes(hhmm: string, mins: number): string {
   const [h, m] = cleanTime(hhmm).split(":").map(Number);
@@ -57,15 +95,15 @@ export type NextPrayer = {
 };
 
 /** Which salah comes next, given today's timings. After Isha, rolls to tomorrow's Fajr (same clock time). */
-export function nextPrayer(timings: Timings, now: Date = new Date()): NextPrayer {
+export function nextPrayer(timings: Timings, now: Date = new Date(), tz?: string): NextPrayer {
   const order: PrayerName[] = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"];
-  const times = order.map((n) => ({ name: n, at: timeToDate(timings[n], now) }));
+  const times = order.map((n) => ({ name: n, at: timeToDate(timings[n], now, tz) }));
 
   for (let i = 0; i < times.length; i++) {
     const t = times[i];
     if (t.name === "Sunrise") continue;
     if (t.at.getTime() > now.getTime()) {
-      const prev = i === 0 ? { name: "Isha" as PrayerName, at: new Date(timeToDate(timings.Isha, now).getTime() - 86400000) } : times[i - 1];
+      const prev = i === 0 ? { name: "Isha" as PrayerName, at: new Date(timeToDate(timings.Isha, now, tz).getTime() - DAY_MS) } : times[i - 1];
       const span = t.at.getTime() - prev.at.getTime();
       return {
         name: t.name as SalahName,
@@ -78,9 +116,8 @@ export function nextPrayer(timings: Timings, now: Date = new Date()): NextPrayer
     }
   }
   // After Isha: tomorrow's Fajr
-  const fajr = timeToDate(timings.Fajr, now);
-  fajr.setDate(fajr.getDate() + 1);
-  const isha = timeToDate(timings.Isha, now);
+  const fajr = new Date(timeToDate(timings.Fajr, now, tz).getTime() + DAY_MS);
+  const isha = timeToDate(timings.Isha, now, tz);
   const span = fajr.getTime() - isha.getTime();
   return {
     name: "Fajr",
@@ -93,10 +130,10 @@ export function nextPrayer(timings: Timings, now: Date = new Date()): NextPrayer
 }
 
 /** Current prayer window (the last salah that has started). */
-export function currentPrayer(timings: Timings, now: Date = new Date()): SalahName {
+export function currentPrayer(timings: Timings, now: Date = new Date(), tz?: string): SalahName {
   let cur: SalahName = "Isha";
   for (const n of SALAH) {
-    if (timeToDate(timings[n], now).getTime() <= now.getTime()) cur = n;
+    if (timeToDate(timings[n], now, tz).getTime() <= now.getTime()) cur = n;
   }
   return cur;
 }

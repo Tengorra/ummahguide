@@ -29,6 +29,7 @@ export default function NearYou({
   lat,
   lng,
   timings,
+  tz,
   live,
   liveStatus,
   updatedAt,
@@ -39,6 +40,7 @@ export default function NearYou({
   lat: number;
   lng: number;
   timings: Timings | null;
+  tz?: string;
   live: boolean;
   liveStatus: "idle" | "watching" | "denied" | "unsupported";
   updatedAt: number | null;
@@ -51,6 +53,7 @@ export default function NearYou({
   const now = useNow(30000);
   const [mosques, setMosques] = useState<Mosque[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const cellKey = mosqueCellKey(lat, lng);
 
   useEffect(() => {
@@ -62,9 +65,9 @@ export default function NearYou({
     return () => {
       alive = false;
     };
-    // Refetch only when the phone crosses into a new ~5 km cell.
+    // Refetch only when the phone crosses into a new ~5 km cell, or on Retry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cellKey]);
+  }, [cellKey, attempt]);
 
   const rows = useMemo(() => {
     if (!mosques) return [];
@@ -75,10 +78,10 @@ export default function NearYou({
       .map(({ m, km }) => ({
         m,
         km,
-        nj: timings ? nextJamat(buildJamatDay(timings, loadPublished(m.id)), now) : null,
+        nj: timings ? nextJamat(buildJamatDay(timings, loadPublished(m.id), tz), now) : null,
         slot: home?.id === m.id ? "home" : work?.id === m.id ? "work" : null,
       }));
-  }, [mosques, lat, lng, timings, now, count, home, work]);
+  }, [mosques, lat, lng, timings, tz, now, count, home, work]);
 
   const idsKey = rows.map((r) => r.m.id).join("|");
   useEffect(() => {
@@ -124,7 +127,21 @@ export default function NearYou({
         </div>
       )}
 
-      {failed && <p className="m-0 px-4 pb-4 pt-1 text-[13px] text-muted">Couldn’t reach the masjid map right now. Pull to refresh or try again in a minute.</p>}
+      {failed && (
+        <div className="flex items-center justify-between gap-3 px-4 pb-4 pt-1">
+          <p className="m-0 text-[13px] text-muted">The masjid map server is busy right now.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setMosques(null);
+              setAttempt((a) => a + 1);
+            }}
+            className="chip-active h-9 shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {mosques && rows.length === 0 && <p className="m-0 px-4 pb-4 pt-1 text-[13px] text-muted">No masjid within 15 km on OpenStreetMap. Try the map to search another city.</p>}
 

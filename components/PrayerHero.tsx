@@ -29,19 +29,19 @@ function Strip({ items, activeKey }: { items: Array<{ key: string; label: string
  * five Jamat times; the calculated adhan is the small secondary line. Without one it falls back
  * to calculated prayer times and invites the user to pick a masjid.
  */
-export default function PrayerHero({ timings, place, methodName, jamat }: { timings: Timings; place: string; methodName: string; jamat?: JamatHero | null }) {
+export default function PrayerHero({ timings, place, methodName, jamat, tz }: { timings: Timings; place: string; methodName: string; jamat?: JamatHero | null; tz?: string }) {
   const now = useNow(30000);
 
   if (jamat) {
     const rows = jamat.day.rows;
-    let idx = rows.findIndex((r) => timeToDate(r.jamat, now).getTime() > now.getTime());
+    let idx = rows.findIndex((r) => timeToDate(r.jamat, now, jamat.day.tz).getTime() > now.getTime());
     const tomorrow = idx === -1;
     if (tomorrow) idx = 0;
     const next = rows[idx];
-    const at = timeToDate(next.jamat, now);
+    const at = timeToDate(next.jamat, now, jamat.day.tz);
     if (tomorrow) at.setDate(at.getDate() + 1);
     const prevRow = idx > 0 ? rows[idx - 1] : rows[rows.length - 1];
-    const prevAt = timeToDate(prevRow.jamat, now);
+    const prevAt = timeToDate(prevRow.jamat, now, jamat.day.tz);
     if (idx === 0) prevAt.setDate(prevAt.getDate() - 1);
     const span = at.getTime() - prevAt.getTime();
     const progress = span > 0 ? Math.min(1, Math.max(0, (now.getTime() - prevAt.getTime()) / span)) : 0;
@@ -80,7 +80,7 @@ export default function PrayerHero({ timings, place, methodName, jamat }: { timi
         </div>
         <Strip
           activeKey={next.prayer}
-          items={rows.map((r) => ({ key: r.prayer, label: r.prayer, time: r.jamat, passed: timeToDate(r.jamat, now).getTime() < now.getTime() && !tomorrow }))}
+          items={rows.map((r) => ({ key: r.prayer, label: r.prayer, time: r.jamat, passed: timeToDate(r.jamat, now, jamat.day.tz).getTime() < now.getTime() && !tomorrow }))}
         />
         <div className="relative mt-2 flex items-center justify-between text-[11px] font-semibold">
           {jamat.day.verified ? (
@@ -100,7 +100,7 @@ export default function PrayerHero({ timings, place, methodName, jamat }: { timi
     );
   }
 
-  const nx = nextPrayer(timings, now);
+  const nx = nextPrayer(timings, now, tz);
   return (
     <section aria-label="Next prayer" className="relative overflow-hidden rounded-hero bg-em-900 px-[18px] pb-3 pt-4 text-ivory shadow-hero">
       <Pattern id="hero-pattern" />
@@ -128,7 +128,7 @@ export default function PrayerHero({ timings, place, methodName, jamat }: { timi
       </div>
       <Strip
         activeKey={nx.name}
-        items={PRAYERS.map((p) => ({ key: p, label: p === "Sunrise" ? "Rise" : p, time: timings[p], passed: p !== nx.name && timeToDate(timings[p], now).getTime() < now.getTime() }))}
+        items={PRAYERS.map((p) => ({ key: p, label: p === "Sunrise" ? "Rise" : p, time: timings[p], passed: p !== nx.name && timeToDate(timings[p], now, tz).getTime() < now.getTime() }))}
       />
       <div className="relative mt-2 text-[11px] font-semibold text-ivory/60">Calculated times · set a Home masjid to see its Jamat here</div>
     </section>

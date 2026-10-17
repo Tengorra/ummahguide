@@ -34,7 +34,7 @@ export default function HomePage() {
   const heroPublished = usePublished(heroMasjid?.id ?? null);
   const heroJamat =
     heroMasjid && day
-      ? { masjidId: heroMasjid.id, masjidName: heroMasjid.name, slot: heroSlot, day: buildJamatDay(day.timings, heroPublished) }
+      ? { masjidId: heroMasjid.id, masjidName: heroMasjid.name, slot: heroSlot, day: buildJamatDay(day.timings, heroPublished, day.tz) }
       : null;
 
   useEffect(() => {
@@ -71,7 +71,7 @@ export default function HomePage() {
       </header>
 
       {day ? (
-        <PrayerHero timings={day.timings} place={loc.city} methodName={methodName} jamat={heroJamat} />
+        <PrayerHero timings={day.timings} place={loc.city} methodName={methodName} jamat={heroJamat} tz={day.tz} />
       ) : (
         <section className="relative h-[176px] overflow-hidden rounded-hero bg-em-900 p-[18px] text-ivory shadow-hero">
           <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-gold-500">Next prayer</span>
@@ -83,6 +83,7 @@ export default function HomePage() {
         lat={loc.lat}
         lng={loc.lng}
         timings={day?.timings ?? null}
+        tz={day?.tz}
         live={live}
         liveStatus={liveStatus}
         updatedAt={updatedAt}
@@ -90,7 +91,7 @@ export default function HomePage() {
         onNearIds={setNearIds}
       />
 
-      <MyMasjids lat={loc.lat} lng={loc.lng} timings={day?.timings ?? null} excludeIds={[...nearIds, ...(heroMasjid ? [heroMasjid.id] : [])]} />
+      <MyMasjids lat={loc.lat} lng={loc.lng} timings={day?.timings ?? null} tz={day?.tz} excludeIds={[...nearIds, ...(heroMasjid ? [heroMasjid.id] : [])]} />
 
       <VerseOfDay />
 
