@@ -3,25 +3,103 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --font-fraunces: "Fraunces";
+  --font-jakarta: "Plus Jakarta Sans";
+  --font-amiri: "Amiri";
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  background: #f4f1ea;
+  color: #141a18;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+  min-height: 100dvh;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+@layer components {
+  .label {
+    @apply text-[11px] font-bold uppercase tracking-[0.08em] text-muted;
+  }
+  .card {
+    @apply rounded-card border border-ink/5 bg-white shadow-card;
+  }
+  .glass {
+    background: rgba(255, 255, 255, 0.74);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+  }
+  .glass-dark {
+    background: rgba(19, 38, 34, 0.8);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .btn-primary {
+    @apply flex h-[52px] items-center justify-center gap-2 rounded-full bg-em-900 px-5 text-[15px] font-bold text-ivory;
+  }
+  .btn-secondary {
+    @apply flex h-[52px] items-center justify-center gap-2 rounded-full border-[1.5px] border-em-900/25 bg-white px-5 text-[15px] font-bold text-em-900;
+  }
+  .chip {
+    @apply inline-flex h-9 items-center rounded-full border border-ink/10 bg-white px-3.5 text-[13px] font-semibold text-em-900;
+  }
+  .chip-active {
+    @apply inline-flex h-9 items-center rounded-full bg-em-900 px-3.5 text-[13px] font-bold text-ivory;
+  }
+  .gold-pill {
+    @apply inline-flex items-center rounded-full bg-gold-100 px-2.5 py-1 text-[11px] font-bold text-gold-700;
+  }
+}
+
+.leaflet-container {
+  font-family: inherit;
+  background: #e8e3d7;
+}
+.ug-pin {
+  background: transparent;
+  border: 0;
+}
+.leaflet-tooltip.ug-tip {
+  background: #0b3d33;
+  color: #f4f1ea;
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(11, 61, 51, 0.25);
+}
+.leaflet-tooltip.ug-tip::before {
+  display: none;
+}
+.leaflet-control-attribution {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+@keyframes ug-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.12;
+  }
+}
+.ug-pulse {
+  animation: ug-pulse 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ug-pulse {
+    animation: none;
   }
 }

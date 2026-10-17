@@ -1,0 +1,22 @@
+{
+  "name": "UmmahGuide",
+  "short_name": "UmmahGuide",
+  "description": "Find the next Jamat near you, read the Quran, and keep your prayers.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F1EA",
+  "theme_color": "#0B3D33",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Next Jamat", "url": "/masjid", "description": "Find the nearest masjid and its next Jamat" },
+    { "name": "Quran", "url": "/quran", "description": "Continue reading" },
+    { "name": "Prayer times", "url": "/prayer", "description": "Today’s times and Qibla" }
+  ]
+}
