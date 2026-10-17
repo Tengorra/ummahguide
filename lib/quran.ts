@@ -332,7 +332,12 @@ export function setArabicSize(px: number): void {
 export function getLastRead(): LastRead | null {
   const v = readJSON<LastRead | null>(KEYS.last, null);
   if (!v || typeof v.chapter !== "number" || typeof v.verse !== "number") return null;
-  return { chapter: v.chapter, verse: v.verse, name: typeof v.name === "string" ? v.name : `Surah ${v.chapter}` };
+  return {
+    chapter: v.chapter,
+    verse: v.verse,
+    name: typeof v.name === "string" ? v.name : `Surah ${v.chapter}`,
+    ...(typeof v.versesCount === "number" ? { versesCount: v.versesCount } : {}),
+  };
 }
 export function setLastRead(v: LastRead): void {
   writeJSON(KEYS.last, v);
