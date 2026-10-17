@@ -8,6 +8,7 @@ import { geocodeCity, useLocation } from "@/lib/location";
 import { useDayTimes, useSettings } from "@/lib/aladhan";
 import { directionsUrl, facilitiesOf, fetchMosques, type Mosque } from "@/lib/overpass";
 import { buildJamatDay, loadPublished, nextJamat, useNow, type NextJamat } from "@/lib/jamat";
+import { useMyMasjids } from "@/lib/mymasjids";
 import { countdown, fmt12 } from "@/lib/prayer";
 
 const MasjidMap = dynamic(() => import("@/components/MasjidMap"), { ssr: false, loading: () => <div className="absolute inset-0 bg-[#E8E3D7]" /> });
@@ -19,6 +20,7 @@ export default function MasjidFinderPage() {
   const { settings } = useSettings();
   const { day } = useDayTimes(loc.lat, loc.lng, settings);
   const now = useNow(30000);
+  const my = useMyMasjids();
 
   const [mosques, setMosques] = useState<Mosque[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -176,7 +178,11 @@ export default function MasjidFinderPage() {
                       <IconMasjid />
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
-                      <span className="line-clamp-1 text-[15px] font-bold">{m.name}</span>
+                      <span className="line-clamp-1 text-[15px] font-bold">
+                        {my.home?.id === m.id && <span className="mr-1.5 rounded-full bg-em-900 px-1.5 py-0.5 align-middle text-[9px] font-bold uppercase tracking-wide text-ivory">Home</span>}
+                        {my.work?.id === m.id && <span className="mr-1.5 rounded-full bg-em-900 px-1.5 py-0.5 align-middle text-[9px] font-bold uppercase tracking-wide text-ivory">Work</span>}
+                        {m.name}
+                      </span>
                       <span className="line-clamp-1 text-[12px] text-muted">
                         {m.distanceKm.toFixed(1)} km{fac.length ? ` · ${fac.join(" · ")}` : ""}
                       </span>

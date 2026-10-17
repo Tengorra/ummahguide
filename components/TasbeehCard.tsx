@@ -11,7 +11,7 @@ const SET = [
 
 type State = { day: string; step: number; count: number };
 
-/** Tap-to-count tasbeeh: 33 · 33 · 34, remembered for today. */
+/** Tap-to-count tasbeeh tile: 33 · 33 · 34, remembered for today. */
 export default function TasbeehCard() {
   const [s, setS] = useState<State>({ day: todayKey(), step: 0, count: 0 });
 
@@ -38,7 +38,7 @@ export default function TasbeehCard() {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.(8);
   }
 
-  const r = 18;
+  const r = 15;
   const circ = 2 * Math.PI * r;
 
   return (
@@ -46,32 +46,17 @@ export default function TasbeehCard() {
       type="button"
       onClick={tap}
       aria-label={done ? "Tasbeeh complete, tap to restart" : `${cur.label} ${s.count} of ${cur.target}, tap to count`}
-      className="card flex flex-col gap-2.5 p-4 text-left active:scale-[0.98]"
+      className="card flex flex-col items-center justify-between gap-1 px-1 py-2.5 text-center active:scale-[0.97]"
     >
-      <div className="flex items-center justify-between">
-        <span className="label">Tasbeeh</span>
-        <svg width="40" height="40" viewBox="0 0 44 44" aria-hidden="true">
-          <circle cx="22" cy="22" r={r} fill="none" stroke="#E3EFEA" strokeWidth="5" />
-          <circle
-            cx="22"
-            cy="22"
-            r={r}
-            fill="none"
-            stroke="#C9A44C"
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeDasharray={`${circ * pct} ${circ}`}
-            transform="rotate(-90 22 22)"
-          />
-        </svg>
-      </div>
-      <div className="flex flex-col gap-0.5">
-        <span className="font-display text-[24px] font-medium leading-none">
-          {done ? "Done" : s.count}{" "}
-          {!done && <span className="text-[16px] text-muted">/ {cur.target}</span>}
-        </span>
-        <span className="text-[12px] text-muted">{done ? "Alhamdulillah · tap to restart" : `${cur.label} · tap to count`}</span>
-      </div>
+      <svg width="34" height="34" viewBox="0 0 36 36" aria-hidden="true">
+        <circle cx="18" cy="18" r={r} fill="none" stroke="#E3EFEA" strokeWidth="4" />
+        <circle cx="18" cy="18" r={r} fill="none" stroke="#C9A44C" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${circ * pct} ${circ}`} transform="rotate(-90 18 18)" />
+        <text x="18" y="22" textAnchor="middle" fontSize="11" fontWeight="700" fill="#0B3D33">
+          {done ? "✓" : s.count}
+        </text>
+      </svg>
+      <span className="max-w-full truncate text-[10px] font-bold text-ink">{done ? "Done" : cur.label}</span>
+      <span className="text-[9px] font-semibold text-muted">{done ? "tap to restart" : `${s.count} / ${cur.target}`}</span>
     </button>
   );
 }

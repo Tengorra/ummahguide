@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { cached, todayKey } from "@/lib/storage";
 
@@ -42,21 +43,21 @@ export default function VerseOfDay() {
   }, []);
 
   return (
-    <section aria-label="Verse of the day" className="card flex flex-col gap-2.5 p-[18px]">
+    <section aria-label="Verse of the day" className="card flex flex-col gap-1.5 px-4 py-3.5">
       <div className="flex items-center justify-between">
         <span className="label">Verse of the day</span>
         {verse && (
-          <span className="text-[12px] font-semibold text-em-600">
-            {verse.surah} {verse.key}
-          </span>
+          <Link href={`/quran/${verse.key.split(":")[0]}?verse=${verse.key.split(":")[1]}`} className="text-[12px] font-semibold text-em-600">
+            {verse.surah} {verse.key} →
+          </Link>
         )}
       </div>
       {verse ? (
         <>
-          <p dir="rtl" lang="ar" className="m-0 text-right font-arabic text-[28px] leading-[1.7] text-em-900">
+          <p dir="rtl" lang="ar" className="m-0 line-clamp-2 text-right font-arabic text-[24px] leading-[1.6] text-em-900">
             {verse.arabic}
           </p>
-          <p className="m-0 text-[14px] leading-[1.5] text-[#3D4744]">{verse.translation}</p>
+          <p className="m-0 line-clamp-2 text-[13px] leading-[1.45] text-[#3D4744]">{verse.translation}</p>
         </>
       ) : failed ? (
         <p className="m-0 text-[13px] text-muted">Couldn’t load today’s verse. Check your connection and try again.</p>

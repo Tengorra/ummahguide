@@ -10,6 +10,7 @@ import { useLocation } from "@/lib/location";
 import { useDayTimes, useSettings } from "@/lib/aladhan";
 import { directionsUrl, facilitiesOf, fetchMosqueById, type Mosque } from "@/lib/overpass";
 import { buildJamatDay, nextJamat, useNow, usePublished } from "@/lib/jamat";
+import { useMyMasjids } from "@/lib/mymasjids";
 import { countdown, fmt12 } from "@/lib/prayer";
 import { getReminder } from "@/lib/reminders";
 import { readJSON, writeJSON } from "@/lib/storage";
@@ -38,6 +39,8 @@ function MasjidProfile() {
   const { day } = useDayTimes(loc.lat, loc.lng, settings);
   const now = useNow(30000);
   const published = usePublished(id);
+  const my = useMyMasjids();
+  const mySlot = my.home?.id === id ? "home" : my.work?.id === id ? "work" : null;
 
   const [m, setM] = useState<Mosque | null | undefined>(undefined);
   const [sheet, setSheet] = useState(search.get("remind") === "1");
@@ -158,6 +161,27 @@ function MasjidProfile() {
       </div>
 
       <div className="flex flex-col gap-3.5 px-5 pt-4">
+        <div role="group" aria-label="Save this masjid as" className="flex items-center gap-2">
+          <span className="text-[12px] font-semibold text-muted">Make this my</span>
+          {(["home", "work"] as const).map((s) => {
+            const on = mySlot === s;
+            return (
+              <button
+                key={s}
+                type="button"
+                aria-pressed={on}
+                onClick={() => {
+                  if (!m) return;
+                  if (on) my.clear(s);
+                  else my.set(s, { id, name: m.name, lat: m.lat, lng: m.lng });
+                }}
+                className={`h-9 rounded-full px-3.5 text-[13px] capitalize ${on ? "bg-em-900 font-bold text-ivory" : "border border-ink/10 bg-white font-semibold text-em-900"}`}
+              >
+                {on ? `${s} ✓` : s}
+              </button>
+            );
+          })}
+        </div>
         <section aria-label="Today’s Jamat times" className="card px-4 pb-1.5 pt-2">
           <div className="grid h-[34px] grid-cols-[minmax(0,1fr)_64px_84px] items-center border-b border-ink/5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
             <span>Today</span>
