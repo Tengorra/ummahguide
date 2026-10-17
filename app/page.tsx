@@ -10,6 +10,8 @@ import MyMasjids from "@/components/MyMasjids";
 import NearYou from "@/components/NearYou";
 import { useLiveLocation } from "@/lib/location";
 import { METHODS, cell, compassLabel, fetchQibla, useDayTimes, useSettings } from "@/lib/aladhan";
+import { buildJamatDay, usePublished } from "@/lib/jamat";
+import { useMyMasjids } from "@/lib/mymasjids";
 import { readJSON } from "@/lib/storage";
 
 type LastRead = { chapter: number; verse: number; name: string; versesCount?: number };
@@ -24,6 +26,16 @@ export default function HomePage() {
   const [nearIds, setNearIds] = useState<string[]>([]);
   const qlat = cell(loc.lat);
   const qlng = cell(loc.lng);
+
+  // The hero shows the Home masjid's Jamat (Work if no Home is set).
+  const { home, work } = useMyMasjids();
+  const heroMasjid = home ?? work;
+  const heroSlot: "home" | "work" = home ? "home" : "work";
+  const heroPublished = usePublished(heroMasjid?.id ?? null);
+  const heroJamat =
+    heroMasjid && day
+      ? { masjidId: heroMasjid.id, masjidName: heroMasjid.name, slot: heroSlot, day: buildJamatDay(day.timings, heroPublished) }
+      : null;
 
   useEffect(() => {
     setToday(new Date().toLocaleDateString("en-CA", { weekday: "short", day: "numeric", month: "short" }));
@@ -59,7 +71,7 @@ export default function HomePage() {
       </header>
 
       {day ? (
-        <PrayerHero timings={day.timings} place={loc.city} methodName={methodName} />
+        <PrayerHero timings={day.timings} place={loc.city} methodName={methodName} jamat={heroJamat} />
       ) : (
         <section className="relative h-[176px] overflow-hidden rounded-hero bg-em-900 p-[18px] text-ivory shadow-hero">
           <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-gold-500">Next prayer</span>
@@ -78,7 +90,7 @@ export default function HomePage() {
         onNearIds={setNearIds}
       />
 
-      <MyMasjids lat={loc.lat} lng={loc.lng} timings={day?.timings ?? null} excludeIds={nearIds} />
+      <MyMasjids lat={loc.lat} lng={loc.lng} timings={day?.timings ?? null} excludeIds={[...nearIds, ...(heroMasjid ? [heroMasjid.id] : [])]} />
 
       <VerseOfDay />
 
