@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IconBell, IconLocate, IconMasjid, IconNavigate, IconSearch } from "@/components/Icons";
-import { geocodeCity, useLiveLocation, type Loc } from "@/lib/location";
+import { geocodeCity, useLocationOnDemand, type Loc } from "@/lib/location";
 import { haversineKm, useDayTimes, useSettings } from "@/lib/aladhan";
 import { directionsUrl, facilitiesOf, fetchMosques, mosqueCellKey, type Mosque } from "@/lib/overpass";
 import { buildJamatDay, loadPublished, nextJamat, useNow, type NextJamat } from "@/lib/jamat";
@@ -16,12 +16,12 @@ const MasjidMap = dynamic(() => import("@/components/MasjidMap"), { ssr: false, 
 type Sort = "jamat" | "distance";
 
 export default function MasjidFinderPage() {
-  const { loc, live, liveStatus, startLive } = useLiveLocation();
+  const { loc, refreshing, refresh } = useLocationOnDemand();
   const { settings } = useSettings();
   const now = useNow(30000);
   const my = useMyMasjids();
 
-  // A city search moves the map centre; the phone's own position keeps updating underneath.
+  // A city search moves the map centre; the locate button takes one GPS fix and returns to you.
   const [searchLoc, setSearchLoc] = useState<Loc | null>(null);
   const center = searchLoc ?? loc;
   const { day } = useDayTimes(center.lat, center.lng, settings);
@@ -90,7 +90,7 @@ export default function MasjidFinderPage() {
     setSearchLoc(null);
     setSelected(null);
     setQuery("");
-    if (!live) startLive();
+    void refresh();
   }
 
   const displayMosques = rows.map((r) => r.m);
@@ -123,10 +123,10 @@ export default function MasjidFinderPage() {
           <button
             type="button"
             onClick={followMe}
-            aria-label={searchLoc ? "Back to my location" : live ? "Following your location" : "Use my location"}
-            className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full ${live && !searchLoc ? "bg-em-900 text-ivory" : "bg-em-100 text-em-900"}`}
+            aria-label="Use my location"
+            className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full ${loc.source === "gps" && !searchLoc ? "bg-em-900 text-ivory" : "bg-em-100 text-em-900"}`}
           >
-            <IconLocate size={18} className={liveStatus === "watching" && !live ? "animate-pulse" : ""} />
+            <IconLocate size={18} className={refreshing ? "animate-pulse" : ""} />
           </button>
         </form>
         <div className="flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]">

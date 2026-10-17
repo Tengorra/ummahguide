@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { IconChevronRight, IconLocate, IconMasjid, IconNavigate } from "./Icons";
+import { IconChevronRight, IconMasjid, IconNavigate, IconRefresh } from "./Icons";
 import { directionsUrl, fetchMosques, mosqueCellKey, type Mosque } from "@/lib/overpass";
 import { buildJamatDay, loadPublished, nextJamat, useNow } from "@/lib/jamat";
 import { haversineKm } from "@/lib/aladhan";
@@ -22,18 +22,19 @@ function Tag({ children }: { children: string }) {
 }
 
 /**
- * "Near you now": the closest masjids to the phone's live position, with their next Jamat and
- * one-tap directions. Re-sorts as the phone moves. Home / Work masjids are tagged when they're near.
+ * "Near you now": the closest masjids to the phone's last known position, with their next Jamat and
+ * one-tap directions. Nothing runs in the background: the Refresh button takes one GPS fix.
+ * Home / Work masjids are tagged when they're near.
  */
 export default function NearYou({
   lat,
   lng,
   timings,
   tz,
-  live,
-  liveStatus,
   updatedAt,
-  onEnable,
+  refreshing,
+  gpsStatus,
+  onRefresh,
   onNearIds,
   count = 2,
 }: {
@@ -41,10 +42,10 @@ export default function NearYou({
   lng: number;
   timings: Timings | null;
   tz?: string;
-  live: boolean;
-  liveStatus: "idle" | "watching" | "denied" | "unsupported";
   updatedAt: number | null;
-  onEnable: () => void;
+  refreshing: boolean;
+  gpsStatus: "idle" | "granted" | "denied" | "unsupported";
+  onRefresh: () => void;
   /** Reports which masjid ids are currently in the list, so the parent can avoid repeating them. */
   onNearIds?: (ids: string[]) => void;
   count?: number;
@@ -93,24 +94,26 @@ export default function NearYou({
     <section aria-label="Masjids near you now" className="card overflow-hidden">
       <div className="flex items-center justify-between px-4 pb-1 pt-3">
         <span className="label">Near you now</span>
-        {live ? (
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted">
-            <span className="relative flex h-2 w-2">
-              <span className="ug-pulse absolute inline-flex h-full w-full rounded-full bg-em-600" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-em-600" />
-            </span>
-            Live · {ago(updatedAt)}
-          </span>
-        ) : liveStatus === "denied" ? (
-          <span className="text-[11px] font-semibold text-muted">Location blocked · using {lat.toFixed(2)}, {lng.toFixed(2)}</span>
-        ) : liveStatus === "unsupported" ? (
-          <span className="text-[11px] font-semibold text-muted">No GPS on this device</span>
-        ) : (
-          <button type="button" onClick={onEnable} className="flex h-8 items-center gap-1.5 rounded-full bg-em-900 px-3 text-[11px] font-bold text-ivory">
-            <IconLocate size={14} />
-            Follow me
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshing || gpsStatus === "unsupported"}
+          aria-label="Refresh my location and nearby masjids"
+          className={`flex h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-bold ${
+            updatedAt ? "bg-em-100 text-em-900" : "bg-em-900 text-ivory"
+          } disabled:opacity-60`}
+        >
+          <IconRefresh size={14} className={refreshing ? "animate-spin" : ""} />
+          {refreshing
+            ? "Locating…"
+            : gpsStatus === "denied"
+              ? "Location blocked"
+              : gpsStatus === "unsupported"
+                ? "No GPS"
+                : updatedAt
+                  ? `Updated ${ago(updatedAt)}`
+                  : "Use my location"}
+        </button>
       </div>
 
       {!mosques && !failed && (
@@ -192,7 +195,7 @@ export default function NearYou({
             Set {rows[0].m.name.split(" ").slice(0, 2).join(" ")} as Home
           </button>
         ) : (
-          <span className="text-[12px] font-semibold text-muted">Closest first · sorted live</span>
+          <span className="text-[12px] font-semibold text-muted">Closest first</span>
         )}
         <Link href="/masjid" className="flex items-center gap-0.5 text-[12px] font-bold text-em-600">
           All on map

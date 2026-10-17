@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { readJSON, writeJSON } from "./storage";
 
 export type Loc = {
@@ -141,93 +141,72 @@ export function metres(a: { lat: number; lng: number }, b: { lat: number; lng: n
 }
 
 /**
- * Live location: follows the phone as it moves (watchPosition), so "nearest masjid" keeps
- * updating while driving. Accepts a fix when it moved ≥120 m; re-geocodes the city after ~3 km.
- * Starts automatically when location was granted before; otherwise exposes start() for a tap.
+ * Location on demand: nothing runs in the background. `refresh()` takes ONE GPS fix (on a tap),
+ * updates the saved location and re-geocodes the city if the phone moved more than ~3 km.
+ * On first open, if location was already granted, it refreshes once so the screen is current.
  */
-export function useLiveLocation() {
+export function useLocationOnDemand() {
   const base = useLocation(false);
-  const [live, setLive] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
-  const [liveStatus, setLiveStatus] = useState<"idle" | "watching" | "denied" | "unsupported">("idle");
-  const [tick, setTick] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [gpsStatus, setGpsStatus] = useState<"idle" | "granted" | "denied" | "unsupported">("idle");
   const [, setClock] = useState(0);
-  const forced = useRef(false);
 
-  const start = useCallback(() => {
+  const refresh = useCallback(async () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setLiveStatus("unsupported");
-      return () => {};
+      setGpsStatus("unsupported");
+      return;
     }
-    setLiveStatus("watching");
+    setRefreshing(true);
     writeJSON(TRIED, true);
-    let last: Loc | null = null;
-    let lastGeocoded: { lat: number; lng: number } | null = null;
-    const id = navigator.geolocation.watchPosition(
-      async (pos) => {
-        const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        if (last && metres(last, here) < 120) {
+    await new Promise<void>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          const prev = loadLocation();
+          const city = prev.source === "gps" && metres(prev, here) < 3000 ? prev.city : await reverseGeocode(here.lat, here.lng);
+          saveLocation({ ...here, city, source: "gps" });
+          setGpsStatus("granted");
           setUpdatedAt(Date.now());
-          return;
-        }
-        const prev = last ?? loadLocation();
-        let city = prev.city;
-        if (!lastGeocoded || metres(lastGeocoded, here) > 3000) {
-          lastGeocoded = here;
-          city = await reverseGeocode(here.lat, here.lng);
-        }
-        const next: Loc = { ...here, city, source: "gps" };
-        last = next;
-        saveLocation(next);
-        setLive(true);
-        setUpdatedAt(Date.now());
-      },
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) setLiveStatus("denied");
-      },
-      { enableHighAccuracy: false, maximumAge: 15000, timeout: 20000 },
-    );
-    return () => navigator.geolocation.clearWatch(id);
+          setRefreshing(false);
+          resolve();
+        },
+        (err) => {
+          setGpsStatus(err.code === err.PERMISSION_DENIED ? "denied" : "idle");
+          setRefreshing(false);
+          resolve();
+        },
+        { enableHighAccuracy: false, maximumAge: 60000, timeout: 15000 },
+      );
+    });
   }, []);
 
+  // One silent refresh per open when permission was granted earlier.
   useEffect(() => {
-    let stop: (() => void) | undefined;
     let cancelled = false;
-    const maybeStart = async () => {
-      const saved = loadLocation();
-      let granted = saved.source === "gps";
+    (async () => {
+      let granted = loadLocation().source === "gps";
       try {
         if (navigator.permissions?.query) {
           const p = await navigator.permissions.query({ name: "geolocation" as PermissionName });
           granted = p.state === "granted";
+          if (p.state === "denied") setGpsStatus("denied");
         }
       } catch {
-        /* permissions API unavailable: fall back to the saved source */
+        /* no permissions API: fall back to the saved source */
       }
-      if (!cancelled && (granted || forced.current)) stop = start();
-    };
-    void maybeStart();
+      if (!cancelled && granted) void refresh();
+    })();
     return () => {
       cancelled = true;
-      stop?.();
     };
-  }, [start, tick]);
+  }, [refresh]);
 
-  // Re-render every 30 s so "updated Xs ago" stays honest.
+  // Re-render every 30 s so "updated X min ago" stays honest.
   useEffect(() => {
     const t = setInterval(() => setClock((c) => c + 1), 30000);
     return () => clearInterval(t);
   }, []);
 
-  return {
-    ...base,
-    live,
-    liveStatus,
-    updatedAt,
-    /** Call from a tap when location was never granted; triggers the browser prompt. */
-    startLive: () => {
-      forced.current = true;
-      setTick((t) => t + 1);
-    },
-  };
+  return { ...base, updatedAt, refreshing, gpsStatus, refresh };
 }

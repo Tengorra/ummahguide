@@ -8,7 +8,7 @@ import VerseOfDay from "@/components/VerseOfDay";
 import TasbeehCard from "@/components/TasbeehCard";
 import MyMasjids from "@/components/MyMasjids";
 import NearYou from "@/components/NearYou";
-import { useLiveLocation } from "@/lib/location";
+import { useLocationOnDemand } from "@/lib/location";
 import { METHODS, cell, compassLabel, fetchQibla, useDayTimes, useSettings } from "@/lib/aladhan";
 import { buildJamatDay, usePublished } from "@/lib/jamat";
 import { useMyMasjids } from "@/lib/mymasjids";
@@ -17,7 +17,7 @@ import { readJSON } from "@/lib/storage";
 type LastRead = { chapter: number; verse: number; name: string; versesCount?: number };
 
 export default function HomePage() {
-  const { loc, live, liveStatus, updatedAt, startLive } = useLiveLocation();
+  const { loc, updatedAt, refreshing, gpsStatus, refresh } = useLocationOnDemand();
   const { settings } = useSettings();
   const { day, error } = useDayTimes(loc.lat, loc.lng, settings);
   const [qibla, setQibla] = useState<number | null>(null);
@@ -84,10 +84,10 @@ export default function HomePage() {
         lng={loc.lng}
         timings={day?.timings ?? null}
         tz={day?.tz}
-        live={live}
-        liveStatus={liveStatus}
         updatedAt={updatedAt}
-        onEnable={startLive}
+        refreshing={refreshing}
+        gpsStatus={gpsStatus}
+        onRefresh={() => void refresh()}
         onNearIds={setNearIds}
       />
 
