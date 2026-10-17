@@ -4,9 +4,9 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { IconBell, IconLocate, IconMasjid, IconNavigate, IconSearch } from "@/components/Icons";
-import { geocodeCity, useLocation } from "@/lib/location";
-import { useDayTimes, useSettings } from "@/lib/aladhan";
-import { directionsUrl, facilitiesOf, fetchMosques, type Mosque } from "@/lib/overpass";
+import { geocodeCity, useLiveLocation, type Loc } from "@/lib/location";
+import { haversineKm, useDayTimes, useSettings } from "@/lib/aladhan";
+import { directionsUrl, facilitiesOf, fetchMosques, mosqueCellKey, type Mosque } from "@/lib/overpass";
 import { buildJamatDay, loadPublished, nextJamat, useNow, type NextJamat } from "@/lib/jamat";
 import { useMyMasjids } from "@/lib/mymasjids";
 import { countdown, fmt12 } from "@/lib/prayer";
@@ -16,11 +16,16 @@ const MasjidMap = dynamic(() => import("@/components/MasjidMap"), { ssr: false, 
 type Sort = "jamat" | "distance";
 
 export default function MasjidFinderPage() {
-  const { loc, status, requestGps, setLoc } = useLocation();
+  const { loc, live, liveStatus, startLive } = useLiveLocation();
   const { settings } = useSettings();
-  const { day } = useDayTimes(loc.lat, loc.lng, settings);
   const now = useNow(30000);
   const my = useMyMasjids();
+
+  // A city search moves the map centre; the phone's own position keeps updating underneath.
+  const [searchLoc, setSearchLoc] = useState<Loc | null>(null);
+  const center = searchLoc ?? loc;
+  const { day } = useDayTimes(center.lat, center.lng, settings);
+  const cellKey = mosqueCellKey(center.lat, center.lng);
 
   const [mosques, setMosques] = useState<Mosque[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,24 +36,25 @@ export default function MasjidFinderPage() {
   const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
-    let live = true;
-    setMosques(null);
+    let alive = true;
     setError(null);
-    fetchMosques(loc.lat, loc.lng)
+    fetchMosques(center.lat, center.lng)
       .then((list) => {
-        if (!live) return;
+        if (!alive) return;
         setMosques(list);
         setSelected((s) => s ?? list[0]?.id ?? null);
       })
-      .catch((e: Error) => live && setError(e.message));
+      .catch((e: Error) => alive && setError(e.message));
     return () => {
-      live = false;
+      alive = false;
     };
-  }, [loc.lat, loc.lng]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cellKey]);
 
   const rows = useMemo(() => {
     if (!mosques) return [];
-    const withNext = mosques.map((m) => {
+    const withNext = mosques.map((raw) => {
+      const m = { ...raw, distanceKm: haversineKm(center.lat, center.lng, raw.lat, raw.lng) };
       const nj: NextJamat | null = day ? nextJamat(buildJamatDay(day.timings, loadPublished(m.id)), now) : null;
       return { m, nj };
     });
@@ -56,7 +62,7 @@ export default function MasjidFinderPage() {
     return filtered.sort((a, b) =>
       sort === "jamat" && a.nj && b.nj ? a.nj.msUntil - b.nj.msUntil || a.m.distanceKm - b.m.distanceKm : a.m.distanceKm - b.m.distanceKm,
     );
-  }, [mosques, day, now, sort, onlyWheelchair]);
+  }, [mosques, day, now, sort, onlyWheelchair, center.lat, center.lng]);
 
   const labels = useMemo(() => {
     const out: Record<string, string> = {};
@@ -76,8 +82,15 @@ export default function MasjidFinderPage() {
     const hit = await geocodeCity(q);
     if (hit) {
       setSelected(null);
-      setLoc(hit);
+      setSearchLoc(hit);
     } else setError(`No place found for “${q}”.`);
+  }
+
+  function followMe() {
+    setSearchLoc(null);
+    setSelected(null);
+    setQuery("");
+    if (!live) startLive();
   }
 
   const displayMosques = rows.map((r) => r.m);
@@ -85,7 +98,7 @@ export default function MasjidFinderPage() {
   return (
     <main className="relative h-dvh overflow-hidden bg-[#E8E3D7]">
       <MasjidMap
-        center={{ lat: loc.lat, lng: loc.lng }}
+        center={{ lat: center.lat, lng: center.lng }}
         user={loc.source === "gps" ? { lat: loc.lat, lng: loc.lng } : null}
         mosques={displayMosques}
         selectedId={selected}
@@ -104,16 +117,16 @@ export default function MasjidFinderPage() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={`${loc.city} · search any city`}
+            placeholder={`${center.city} · search any city`}
             className="min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-ink outline-none placeholder:text-muted"
           />
           <button
             type="button"
-            onClick={() => void requestGps()}
-            aria-label="Use my location"
-            className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full ${loc.source === "gps" ? "bg-em-900 text-ivory" : "bg-em-100 text-em-900"}`}
+            onClick={followMe}
+            aria-label={searchLoc ? "Back to my location" : live ? "Following your location" : "Use my location"}
+            className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full ${live && !searchLoc ? "bg-em-900 text-ivory" : "bg-em-100 text-em-900"}`}
           >
-            <IconLocate size={18} className={status === "locating" ? "animate-pulse" : ""} />
+            <IconLocate size={18} className={liveStatus === "watching" && !live ? "animate-pulse" : ""} />
           </button>
         </form>
         <div className="flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]">

@@ -7,19 +7,23 @@ import PrayerHero from "@/components/PrayerHero";
 import VerseOfDay from "@/components/VerseOfDay";
 import TasbeehCard from "@/components/TasbeehCard";
 import MyMasjids from "@/components/MyMasjids";
-import { useLocation } from "@/lib/location";
-import { METHODS, compassLabel, fetchQibla, useDayTimes, useSettings } from "@/lib/aladhan";
+import NearYou from "@/components/NearYou";
+import { useLiveLocation } from "@/lib/location";
+import { METHODS, cell, compassLabel, fetchQibla, useDayTimes, useSettings } from "@/lib/aladhan";
 import { readJSON } from "@/lib/storage";
 
 type LastRead = { chapter: number; verse: number; name: string; versesCount?: number };
 
 export default function HomePage() {
-  const { loc } = useLocation();
+  const { loc, live, liveStatus, updatedAt, startLive } = useLiveLocation();
   const { settings } = useSettings();
   const { day, error } = useDayTimes(loc.lat, loc.lng, settings);
   const [qibla, setQibla] = useState<number | null>(null);
   const [last, setLast] = useState<LastRead | null>(null);
   const [today, setToday] = useState("");
+  const [nearIds, setNearIds] = useState<string[]>([]);
+  const qlat = cell(loc.lat);
+  const qlng = cell(loc.lng);
 
   useEffect(() => {
     setToday(new Date().toLocaleDateString("en-CA", { weekday: "short", day: "numeric", month: "short" }));
@@ -27,8 +31,8 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    fetchQibla(loc.lat, loc.lng).then(setQibla).catch(() => setQibla(null));
-  }, [loc.lat, loc.lng]);
+    fetchQibla(qlat, qlng).then(setQibla).catch(() => setQibla(null));
+  }, [qlat, qlng]);
 
   const methodName = METHODS.find((m) => m.id === settings.method)?.name.split(" ")[0] ?? "ISNA";
 
@@ -63,7 +67,18 @@ export default function HomePage() {
         </section>
       )}
 
-      <MyMasjids lat={loc.lat} lng={loc.lng} timings={day?.timings ?? null} />
+      <NearYou
+        lat={loc.lat}
+        lng={loc.lng}
+        timings={day?.timings ?? null}
+        live={live}
+        liveStatus={liveStatus}
+        updatedAt={updatedAt}
+        onEnable={startLive}
+        onNearIds={setNearIds}
+      />
+
+      <MyMasjids lat={loc.lat} lng={loc.lng} timings={day?.timings ?? null} excludeIds={nearIds} />
 
       <VerseOfDay />
 

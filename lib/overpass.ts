@@ -54,18 +54,28 @@ function toMosque(el: OverpassEl, lat: number, lng: number): Mosque | null {
   return { id: `${el.type}-${el.id}`, name, lat: mlat, lng: mlng, distanceKm: haversineKm(lat, lng, mlat, mlng), tags };
 }
 
-export async function fetchMosques(lat: number, lng: number, radiusM = 10000): Promise<Mosque[]> {
-  const key = `ug.mosques.${Math.round(lat * 100) / 100}.${Math.round(lng * 100) / 100}.${radiusM}`;
+/** Masjids are fetched around the centre of a ~5 km cell with a 15 km radius, so a moving phone reuses one result set. */
+const CELL = 0.05;
+const snap = (n: number) => Math.round(n / CELL) * CELL;
+
+export function mosqueCellKey(lat: number, lng: number): string {
+  return `${snap(lat).toFixed(2)},${snap(lng).toFixed(2)}`;
+}
+
+export async function fetchMosques(lat: number, lng: number, radiusM = 15000): Promise<Mosque[]> {
+  const clat = snap(lat);
+  const clng = snap(lng);
+  const key = `ug.mosques.${clat.toFixed(2)}.${clng.toFixed(2)}.${radiusM}`;
   const list = await cached(key, 24 * 3600_000, async () => {
     const q = `[out:json][timeout:25];
 (
-  node["amenity"="place_of_worship"]["religion"="muslim"](around:${radiusM},${lat},${lng});
-  way["amenity"="place_of_worship"]["religion"="muslim"](around:${radiusM},${lat},${lng});
-  relation["amenity"="place_of_worship"]["religion"="muslim"](around:${radiusM},${lat},${lng});
+  node["amenity"="place_of_worship"]["religion"="muslim"](around:${radiusM},${clat},${clng});
+  way["amenity"="place_of_worship"]["religion"="muslim"](around:${radiusM},${clat},${clng});
+  relation["amenity"="place_of_worship"]["religion"="muslim"](around:${radiusM},${clat},${clng});
 );
 out center tags;`;
     const els = await runOverpass(q);
-    return els.map((e) => toMosque(e, lat, lng)).filter((m): m is Mosque => !!m);
+    return els.map((e) => toMosque(e, clat, clng)).filter((m): m is Mosque => !!m);
   });
   // distances relative to the current point (cache may be from a nearby point)
   const withDist = list.map((m) => ({ ...m, distanceKm: haversineKm(lat, lng, m.lat, m.lng) })).sort((a, b) => a.distanceKm - b.distanceKm);

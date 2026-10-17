@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { readJSON, writeJSON } from "./storage";
 
 export type Loc = {
@@ -99,4 +99,105 @@ export function useLocation(autoAsk = true) {
   }, []);
 
   return { loc, status, requestGps, setLoc };
+}
+
+/** Metres between two points. */
+export function metres(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+/**
+ * Live location: follows the phone as it moves (watchPosition), so "nearest masjid" keeps
+ * updating while driving. Accepts a fix when it moved ≥120 m; re-geocodes the city after ~3 km.
+ * Starts automatically when location was granted before; otherwise exposes start() for a tap.
+ */
+export function useLiveLocation() {
+  const base = useLocation(false);
+  const [live, setLive] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  const [liveStatus, setLiveStatus] = useState<"idle" | "watching" | "denied" | "unsupported">("idle");
+  const [tick, setTick] = useState(0);
+  const [, setClock] = useState(0);
+  const forced = useRef(false);
+
+  const start = useCallback(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLiveStatus("unsupported");
+      return () => {};
+    }
+    setLiveStatus("watching");
+    writeJSON(TRIED, true);
+    let last: Loc | null = null;
+    let lastGeocoded: { lat: number; lng: number } | null = null;
+    const id = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        if (last && metres(last, here) < 120) {
+          setUpdatedAt(Date.now());
+          return;
+        }
+        const prev = last ?? loadLocation();
+        let city = prev.city;
+        if (!lastGeocoded || metres(lastGeocoded, here) > 3000) {
+          lastGeocoded = here;
+          city = await reverseGeocode(here.lat, here.lng);
+        }
+        const next: Loc = { ...here, city, source: "gps" };
+        last = next;
+        saveLocation(next);
+        setLive(true);
+        setUpdatedAt(Date.now());
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) setLiveStatus("denied");
+      },
+      { enableHighAccuracy: false, maximumAge: 15000, timeout: 20000 },
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, []);
+
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    const maybeStart = async () => {
+      const saved = loadLocation();
+      let granted = saved.source === "gps";
+      try {
+        if (navigator.permissions?.query) {
+          const p = await navigator.permissions.query({ name: "geolocation" as PermissionName });
+          granted = p.state === "granted";
+        }
+      } catch {
+        /* permissions API unavailable: fall back to the saved source */
+      }
+      if (!cancelled && (granted || forced.current)) stop = start();
+    };
+    void maybeStart();
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [start, tick]);
+
+  // Re-render every 30 s so "updated Xs ago" stays honest.
+  useEffect(() => {
+    const t = setInterval(() => setClock((c) => c + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  return {
+    ...base,
+    live,
+    liveStatus,
+    updatedAt,
+    /** Call from a tap when location was never granted; triggers the browser prompt. */
+    startLive: () => {
+      forced.current = true;
+      setTick((t) => t + 1);
+    },
+  };
 }

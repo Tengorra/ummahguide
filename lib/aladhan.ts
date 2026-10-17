@@ -76,7 +76,9 @@ function toDay(raw: RawDay, isoDate: string): DayTimes {
   };
 }
 
-const r3 = (n: number) => Math.round(n * 1000) / 1000;
+/** Prayer times don't change within ~1 km, so cache and refetch per 0.01° cell. */
+const r3 = (n: number) => Math.round(n * 100) / 100;
+export const cell = r3;
 
 export async function fetchDay(lat: number, lng: number, date: Date, s: Settings): Promise<DayTimes> {
   const iso = todayKey(date);
@@ -138,16 +140,18 @@ export async function fetchQibla(lat: number, lng: number): Promise<number> {
 export function useDayTimes(lat: number, lng: number, s: Settings) {
   const [day, setDay] = useState<DayTimes | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const clat = r3(lat);
+  const clng = r3(lng);
   useEffect(() => {
     let live = true;
     setError(null);
-    fetchDay(lat, lng, new Date(), s)
+    fetchDay(clat, clng, new Date(), s)
       .then((d) => live && setDay(d))
       .catch((e: Error) => live && setError(e.message));
     return () => {
       live = false;
     };
-  }, [lat, lng, s.method, s.school]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [clat, clng, s.method, s.school]); // eslint-disable-line react-hooks/exhaustive-deps
   return { day, error };
 }
 
