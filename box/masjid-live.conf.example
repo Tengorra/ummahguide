@@ -1,0 +1,45 @@
+# Masjid Live box configuration — copy to /etc/masjid-live.conf and edit.
+# Lines starting with # are ignored.
+
+# --- Identity (MASJID_ID is the last part of the masjid's page URL in UmmahGuide, e.g. node-123456)
+MASJID_ID=node-123456
+MASJID_NAME=Masjid Al-Noor
+
+# --- Server (the UmmahGuide live server you set up with server/setup.sh)
+ICECAST_HOST=live.example.com
+ICECAST_PORT=8000
+ICECAST_SOURCE_PASSWORD=change-me
+# MOUNT defaults to /masjid/<MASJID_ID>.mp3
+BITRATE=48k
+
+# --- Where the masjid is (drives the prayer-time windows)
+LAT=52.1332
+LNG=-106.6700
+METHOD=2
+SCHOOL=0
+
+# --- Audio
+AUDIO_DEVICE=auto
+# Run `sudo masjid-live --meter` and set this between the room's background level and the azan level.
+THRESHOLD_RMS=600
+ATTACK_SECONDS=0.6
+SILENCE_SECONDS=20
+PRE_ROLL_SECONDS=3
+
+# --- When streaming is allowed (nothing goes out otherwise unless the button is pressed)
+WINDOW_BEFORE_MIN=15
+WINDOW_AFTER_MIN=45
+JUMUAH_WINDOW=12:00-15:00
+# Comma-separated extra windows, e.g. Taraweeh in Ramadan:
+EXTRA_WINDOWS=
+# 1 = ignore the schedule and stream whenever there is sound (not recommended)
+ALWAYS_ARMED=0
+# How long one press of the Go-Live button keeps the box armed
+FORCE_MINUTES=30
+
+# --- Wiring (BCM numbers). Button between GPIO17 and GND; LED on GPIO27 → 330 Ω → GND.
+BUTTON_GPIO=17
+LED_GPIO=27
+
+# --- Optional status reporting to the app
+HEARTBEAT_URL=

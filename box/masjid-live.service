@@ -1,0 +1,17 @@
+[Unit]
+Description=Masjid Live box — streams masjid audio to the UmmahGuide live server
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/masjid-live/masjid-live.py
+Restart=always
+RestartSec=5
+User=root
+Environment=PYTHONUNBUFFERED=1
+# Give the audio device a moment to enumerate after boot
+ExecStartPre=/bin/sleep 5
+
+[Install]
+WantedBy=multi-user.target
