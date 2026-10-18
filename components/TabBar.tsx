@@ -2,21 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconHome, IconMasjid, IconQuran, IconPrayer, IconMore } from "./Icons";
+import { IconHome, IconMasjid, IconQuran, IconPrayer, IconLibrary } from "./Icons";
 
 const TABS = [
   { href: "/", label: "Home", Icon: IconHome, match: (p: string) => p === "/" },
   { href: "/masjid", label: "Masjid", Icon: IconMasjid, match: (p: string) => p.startsWith("/masjid") },
   { href: "/quran", label: "Quran", Icon: IconQuran, match: (p: string) => p.startsWith("/quran") },
   { href: "/prayer", label: "Prayer", Icon: IconPrayer, match: (p: string) => p.startsWith("/prayer") },
-  { href: "/more", label: "More", Icon: IconMore, match: (p: string) => p.startsWith("/more") },
+  { href: "/library", label: "Library", Icon: IconLibrary, match: (p: string) => p.startsWith("/library") || p.startsWith("/more") },
 ];
 
 /** Floating glass tab bar. Dark variant on night screens (Quran, Prayer). Hidden on pushed detail screens. */
 export default function TabBar() {
   const pathname = usePathname() || "/";
-  const dark = pathname.startsWith("/quran") || pathname.startsWith("/prayer") || pathname.startsWith("/qibla");
-  const hidden = /^\/masjid\/[^/]+/.test(pathname) || /^\/quran\/[^/]+/.test(pathname) || pathname.startsWith("/qibla");
+  const dark = pathname.startsWith("/quran") || pathname.startsWith("/prayer") || pathname.startsWith("/qibla") || pathname.startsWith("/library/tasbih");
+  const hidden = /^\/masjid\/[^/]+/.test(pathname) || /^\/quran\/[^/]+/.test(pathname) || pathname.startsWith("/qibla") || /^\/library\/[^/]+/.test(pathname);
   if (hidden) return null;
 
   return (

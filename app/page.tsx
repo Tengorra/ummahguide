@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { IconBell, IconMasjid, IconQuran } from "@/components/Icons";
+import { IconGear, IconMasjid, IconQuran } from "@/components/Icons";
 import PrayerHero from "@/components/PrayerHero";
 import VerseOfDay from "@/components/VerseOfDay";
 import TasbeehCard from "@/components/TasbeehCard";
@@ -65,8 +65,8 @@ export default function HomePage() {
             ) : null}
           </span>
         </div>
-        <Link href="/more#alerts" aria-label="Azan and reminder settings" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink/10 bg-white text-em-900 shadow-card">
-          <IconBell />
+        <Link href="/more" aria-label="Settings" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink/10 bg-white text-em-900 shadow-card">
+          <IconGear />
         </Link>
       </header>
 

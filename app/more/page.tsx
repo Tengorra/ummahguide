@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { IconChevronRight, IconLocate } from "@/components/Icons";
+import { IconBack, IconChevronRight, IconLocate } from "@/components/Icons";
 import { METHODS, useSettings } from "@/lib/aladhan";
 import { geocodeCity, useLocation } from "@/lib/location";
 import { ensureNotificationPermission, loadReminders, type Reminder } from "@/lib/reminders";
@@ -33,7 +33,12 @@ export default function MorePage() {
 
   return (
     <main className="flex flex-col gap-4 px-5 pb-[120px] pt-14">
-      <h1 className="m-0 font-display text-[30px] font-medium leading-[1.05]">Settings</h1>
+      <div className="flex items-center gap-3">
+        <Link href="/library" aria-label="Back" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink/10 bg-white text-em-900 shadow-card">
+          <IconBack />
+        </Link>
+        <h1 className="m-0 font-display text-[30px] font-medium leading-[1.05]">Settings</h1>
+      </div>
 
       <section aria-label="Location" className="card flex flex-col gap-3 p-4">
         <span className="label">Location</span>

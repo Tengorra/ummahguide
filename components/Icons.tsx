@@ -204,6 +204,46 @@ export const IconDoubleCheck = (p: P) => (
     <path d="m12 16 8-9" />
   </svg>
 );
+export const IconLibrary = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4 5h4v15H4zM10 5h4v15h-4z" />
+    <path d="m15.5 6 3.5-1 4 14-3.5 1z" />
+  </svg>
+);
+export const IconBeads = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="6" cy="12" r="2.2" />
+    <circle cx="12" cy="7" r="2.2" />
+    <circle cx="18" cy="12" r="2.2" />
+    <circle cx="12" cy="17" r="2.2" />
+    <path d="M7.5 10.2 10.3 8M13.7 8l2.8 2.2M7.5 13.8l2.8 2.2M13.7 16l2.8-2.2" />
+  </svg>
+);
+export const IconScroll = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M6 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 0-2-2" />
+    <path d="M6 18a2 2 0 0 0 2 2h12" />
+    <path d="M10 9h7M10 13h5" />
+  </svg>
+);
+export const IconSparkle = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.8 2.8M14.9 14.9l2.8 2.8M6.3 17.7l2.8-2.8M14.9 9.1l2.8-2.8" />
+  </svg>
+);
+export const IconScale = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 4v16M5 20h14M12 6l-6 3 6-3 6 3" />
+    <path d="M3 13a3 3 0 0 0 6 0L6 9zM15 13a3 3 0 0 0 6 0l-3-4z" />
+  </svg>
+);
+export const IconHands = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M7 20v-6a4 4 0 0 1 2-3.5V5a1.5 1.5 0 0 1 3 0v5" />
+    <path d="M17 20v-6a4 4 0 0 0-2-3.5V5a1.5 1.5 0 0 0-3 0v5" />
+    <path d="M9 20h6" />
+  </svg>
+);
 export const IconCopy = (p: P) => (
   <svg {...base(p)}>
     <rect x="9" y="9" width="11" height="11" rx="2" />

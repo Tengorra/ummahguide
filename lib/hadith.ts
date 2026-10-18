@@ -13,11 +13,11 @@ export type Hadith = {
 };
 
 /** Pools we draw the daily hadith from: short, well-known, every-Muslim content first. */
-const POOLS: { slug: string; name: string; short: string; from: number; to: number }[] = [
-  { slug: "nawawi", name: "Forty Hadith of an-Nawawi", short: "Nawawi", from: 1, to: 42 },
-  { slug: "qudsi", name: "Forty Hadith Qudsi", short: "Hadith Qudsi", from: 1, to: 40 },
-  { slug: "bukhari", name: "Sahih al-Bukhari", short: "Bukhari", from: 1, to: 120 },
-  { slug: "muslim", name: "Sahih Muslim", short: "Muslim", from: 1, to: 120 },
+const POOLS: { slug: string; name: string; short: string; from: number; to: number; total: number }[] = [
+  { slug: "nawawi", name: "Forty Hadith of an-Nawawi", short: "Nawawi", from: 1, to: 42, total: 42 },
+  { slug: "qudsi", name: "Forty Hadith Qudsi", short: "Hadith Qudsi", from: 1, to: 40, total: 40 },
+  { slug: "bukhari", name: "Sahih al-Bukhari", short: "Bukhari", from: 1, to: 120, total: 7563 },
+  { slug: "muslim", name: "Sahih Muslim", short: "Muslim", from: 1, to: 120, total: 3032 },
 ];
 
 function dayNumber(d = new Date()): number {
@@ -83,4 +83,4 @@ export async function fetchHadith(slug: string, number: number): Promise<Hadith>
   return { collection: pool.name, number, text: clean(h.text), arabic: clean(ar?.hadiths?.[0]?.text ?? ""), reference: `${pool.short} ${number}` };
 }
 
-export const HADITH_COLLECTIONS = POOLS.map((p) => ({ slug: p.slug, name: p.name, from: p.from, to: p.to }));
+export const HADITH_COLLECTIONS = POOLS.map((p) => ({ slug: p.slug, name: p.name, from: 1, to: p.total }));
