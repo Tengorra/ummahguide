@@ -137,6 +137,11 @@ export default function ReaderPage() {
         setChapters(chs);
         setVerses(vs);
         setLoading(false);
+        // A translation that no longer exists in the API comes back empty — fall back to the default.
+        if (vs.length && vs.every((v) => !v.translation) && translationId !== DEFAULT_TRANSLATION) {
+          setTranslationId(DEFAULT_TRANSLATION);
+          setTranslation(DEFAULT_TRANSLATION);
+        }
         setCurrent((cur) => {
           if (cur && vs.some((v) => v.id === cur)) return cur;
           const q = new URLSearchParams(window.location.search);

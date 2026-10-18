@@ -16,9 +16,9 @@ function stripHtml(s: string): string {
 async function loadVerse(): Promise<Verse> {
   const dayIndex = Math.floor(Date.now() / 86400000) % KEYS.length;
   const key = KEYS[dayIndex];
-  return cached(`ug.votd.${todayKey()}`, 24 * 3600_000, async () => {
+  return cached(`ug.votd2.${todayKey()}`, 24 * 3600_000, async () => {
     const [vr, cr] = await Promise.all([
-      fetch(`https://api.quran.com/api/v4/verses/by_key/${key}?language=en&translations=131&fields=text_uthmani`),
+      fetch(`https://api.quran.com/api/v4/verses/by_key/${key}?language=en&translations=20&fields=text_uthmani`),
       fetch(`https://api.quran.com/api/v4/chapters/${key.split(":")[0]}?language=en`),
     ]);
     const v = await vr.json();

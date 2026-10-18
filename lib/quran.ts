@@ -138,8 +138,8 @@ type RawVerse = {
 type RawPagination = { next_page?: number | null; total_pages?: number };
 
 export const TRANSLATIONS = [
-  { id: 131, name: "The Clear Quran (Khattab)", short: "Khattab" },
-  { id: 20, name: "Sahih International", short: "Sahih Intl" },
+  { id: 20, name: "Saheeh International", short: "Saheeh Intl" },
+  { id: 85, name: "Abdel Haleem", short: "Abdel Haleem" },
   { id: 19, name: "Pickthall", short: "Pickthall" },
   { id: 22, name: "Yusuf Ali", short: "Yusuf Ali" },
 ] as const;
@@ -150,7 +150,7 @@ export const RECITERS = [
   { id: 3, name: "Abdur-Rahman as-Sudais", short: "Sudais", initials: "AS" },
 ] as const;
 
-export const DEFAULT_TRANSLATION = 131;
+export const DEFAULT_TRANSLATION = 20; // Saheeh International (131, The Clear Quran, was withdrawn from the API)
 export const DEFAULT_RECITER = 7;
 export const ARABIC_SIZES = [22, 25, 28, 32, 36] as const;
 export const DEFAULT_ARABIC_SIZE = 28;
@@ -548,9 +548,11 @@ export async function fetchVerseByKey(key: string, translationId: number): Promi
 
 /* ---------- Persisted preferences ---------- */
 
+const WITHDRAWN_TRANSLATIONS = [131];
+
 export function getTranslationId(): number {
   const v = readJSON<number>(KEYS.translation, DEFAULT_TRANSLATION);
-  return Number.isInteger(v) && v > 0 ? v : DEFAULT_TRANSLATION;
+  return Number.isInteger(v) && v > 0 && !WITHDRAWN_TRANSLATIONS.includes(v) ? v : DEFAULT_TRANSLATION;
 }
 export function setTranslationId(id: number): void {
   writeJSON(KEYS.translation, id);
