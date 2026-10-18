@@ -129,6 +129,37 @@ export function nextPrayer(timings: Timings, now: Date = new Date(), tz?: string
   };
 }
 
+/** Milliseconds → "2:14:05" (h:mm:ss) for live countdowns. */
+export function countdownClock(ms: number): string {
+  if (ms <= 0) return "0:00:00";
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
+/**
+ * Islamic night times from Maghrib to the next Fajr (today's Fajr stands in for tomorrow's, ±1–2 min):
+ * midnight (halfway) and the start of the last third — when Tahajjud is most virtuous.
+ */
+export function nightTimes(timings: Timings, base: Date = new Date(), tz?: string): { midnight: Date; lastThird: Date; nightMs: number } {
+  const maghrib = timeToDate(timings.Maghrib, base, tz);
+  let fajr = timeToDate(timings.Fajr, base, tz);
+  if (fajr.getTime() <= maghrib.getTime()) fajr = new Date(fajr.getTime() + DAY_MS);
+  const nightMs = fajr.getTime() - maghrib.getTime();
+  return { midnight: new Date(maghrib.getTime() + nightMs / 2), lastThird: new Date(fajr.getTime() - nightMs / 3), nightMs };
+}
+
+/** "7:42 PM" from a Date, in the location's zone when given. */
+export function fmtInstant(d: Date, tz?: string): string {
+  try {
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
+  } catch {
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  }
+}
+
 /** Current prayer window (the last salah that has started). */
 export function currentPrayer(timings: Timings, now: Date = new Date(), tz?: string): SalahName {
   let cur: SalahName = "Isha";

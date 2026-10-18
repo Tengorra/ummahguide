@@ -165,6 +165,45 @@ export const IconClose = (p: P) => (
     <path d="M6 6l12 12M18 6 6 18" />
   </svg>
 );
+export const IconChevronLeft = (p: P) => (
+  <svg {...base(p)}>
+    <path d="m15 6-6 6 6 6" />
+  </svg>
+);
+export const IconCalendar = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="4" y="5" width="16" height="15" rx="2.5" />
+    <path d="M4 10h16M8 3v4M16 3v4" />
+  </svg>
+);
+export const IconCompass = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="m15.5 8.5-2 5-5 2 2-5z" />
+  </svg>
+);
+export const IconGear = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" />
+  </svg>
+);
+export const IconMoon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
+  </svg>
+);
+export const IconFlame = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 3c1 3 4 4.5 4 9a4 4 0 0 1-8 0c0-1.5.5-2.5 1.5-3.5.5 1.5 1.5 2 2.5 2 0-3-1-5-0-7.5z" />
+  </svg>
+);
+export const IconDoubleCheck = (p: P) => (
+  <svg {...base(p)} strokeWidth={2.25}>
+    <path d="m3 12 4 4 7-8" />
+    <path d="m12 16 8-9" />
+  </svg>
+);
 export const IconRefresh = (p: P) => (
   <svg {...base(p)}>
     <path d="M20 12a8 8 0 1 1-2.34-5.66" />

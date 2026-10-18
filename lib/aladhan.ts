@@ -101,6 +101,20 @@ export async function fetchDay(lat: number, lng: number, date: Date, s: Settings
   });
 }
 
+/** One whole Gregorian month (1-based) of times with Hijri dates, cached a day. */
+export async function fetchMonth(lat: number, lng: number, y: number, m: number, s: Settings): Promise<DayTimes[]> {
+  const key = `ug.month.${y}-${m}.${r3(lat)}.${r3(lng)}.${s.method}.${s.school}`;
+  return cached(key, 24 * 3600_000, async () => {
+    const r = await fetch(`https://api.aladhan.com/v1/calendar/${y}/${m}?latitude=${lat}&longitude=${lng}&method=${s.method}&school=${s.school}`);
+    if (!r.ok) throw new Error("Calendar unavailable");
+    const j = await r.json();
+    return (j.data as RawDay[]).map((raw) => {
+      const [dd, mo, yy] = raw.date.gregorian.date.split("-");
+      return toDay(raw, `${yy}-${mo}-${dd}`);
+    });
+  });
+}
+
 /** The next 7 days starting today (pulls one or two calendar months). */
 export async function fetchWeek(lat: number, lng: number, s: Settings): Promise<DayTimes[]> {
   const today = new Date();
@@ -113,19 +127,7 @@ export async function fetchWeek(lat: number, lng: number, s: Settings): Promise<
   const all: DayTimes[] = [];
   for (const ym of Array.from(months)) {
     const [y, m] = ym.split("-").map(Number);
-    const key = `ug.month.${ym}.${r3(lat)}.${r3(lng)}.${s.method}.${s.school}`;
-    const days = await cached(key, 24 * 3600_000, async () => {
-      const r = await fetch(
-        `https://api.aladhan.com/v1/calendar/${y}/${m}?latitude=${lat}&longitude=${lng}&method=${s.method}&school=${s.school}`,
-      );
-      if (!r.ok) throw new Error("Calendar unavailable");
-      const j = await r.json();
-      return (j.data as RawDay[]).map((raw) => {
-        const [dd, mo, yy] = raw.date.gregorian.date.split("-");
-        return toDay(raw, `${yy}-${mo}-${dd}`);
-      });
-    });
-    all.push(...days);
+    all.push(...(await fetchMonth(lat, lng, y, m, s)));
   }
   const start = todayKey(today);
   const end = new Date(today);

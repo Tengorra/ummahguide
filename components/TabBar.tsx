@@ -15,8 +15,8 @@ const TABS = [
 /** Floating glass tab bar. Dark variant on night screens (Quran, Prayer). Hidden on pushed detail screens. */
 export default function TabBar() {
   const pathname = usePathname() || "/";
-  const dark = pathname.startsWith("/quran") || pathname.startsWith("/prayer");
-  const hidden = /^\/masjid\/[^/]+/.test(pathname) || /^\/quran\/[^/]+/.test(pathname);
+  const dark = pathname.startsWith("/quran") || pathname.startsWith("/prayer") || pathname.startsWith("/qibla");
+  const hidden = /^\/masjid\/[^/]+/.test(pathname) || /^\/quran\/[^/]+/.test(pathname) || pathname.startsWith("/qibla");
   if (hidden) return null;
 
   return (

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { readJSON, todayKey, writeJSON } from "./storage";
+import { loadAlerts } from "./alerts";
 import { buildJamatDay, loadPublished } from "./jamat";
 import { fetchDay, loadSettings } from "./aladhan";
 import { loadLocation } from "./location";
@@ -61,8 +62,8 @@ export function useReminderScheduler() {
     let cancelled = false;
     const tick = async () => {
       const reminders = loadReminders();
-      const azan = readJSON<Record<SalahName, boolean> | null>("ug.azan", null);
-      const anyAzan = !!azan && Object.values(azan).some(Boolean);
+      const alerts = loadAlerts();
+      const anyAzan = SALAH.some((p) => alerts[p].azan || alerts[p].before > 0);
       if (!reminders.length && !anyAzan) return;
       const loc = loadLocation();
       const settings = loadSettings();
@@ -79,14 +80,22 @@ export function useReminderScheduler() {
       const now = Date.now();
       const fired = readJSON<Record<string, true>>(FIRED, {});
       const today = todayKey();
-      if (azan) {
-        for (const p of SALAH) {
-          if (!azan[p]) continue;
-          const at = timeToDate(timings[p], new Date(), tz).getTime();
+      for (const p of SALAH) {
+        const a = alerts[p];
+        const at = timeToDate(timings[p], new Date(), tz).getTime();
+        if (a.azan) {
           const k = `${today}.azan.${p}`;
           if (!fired[k] && at - now <= 0 && now - at < 90000) {
             fired[k] = true;
             notify(`${p} · ${fmt12(timings[p])}`, `It is time for ${p} prayer in ${loc.city}.`, k);
+          }
+        }
+        if (a.before > 0) {
+          const lead = a.before * 60000;
+          const k = `${today}.pre.${p}`;
+          if (!fired[k] && at - now <= lead && at - now > lead - 90000) {
+            fired[k] = true;
+            notify(`${p} in ${a.before} min`, `${fmt12(timings[p])} in ${loc.city}.`, k);
           }
         }
       }

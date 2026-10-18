@@ -1,0 +1,32 @@
+[
+ {
+  "slug": "morning-dhikr",
+  "name": "Morning adhkar",
+  "sub": "After Fajr until sunrise",
+  "count": 19
+ },
+ {
+  "slug": "evening-dhikr",
+  "name": "Evening adhkar",
+  "sub": "After Asr until Maghrib",
+  "count": 19
+ },
+ {
+  "slug": "dhikr-after-salah",
+  "name": "After every salah",
+  "sub": "Straight after the tasleem",
+  "count": 13
+ },
+ {
+  "slug": "daily-dua",
+  "name": "Daily duas",
+  "sub": "Waking, eating, travelling, sleeping…",
+  "count": 38
+ },
+ {
+  "slug": "selected-dua",
+  "name": "Selected duas",
+  "sub": "From the Quran and Sunnah",
+  "count": 8
+ }
+]

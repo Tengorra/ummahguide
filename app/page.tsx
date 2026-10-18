@@ -96,7 +96,7 @@ export default function HomePage() {
       <VerseOfDay />
 
       <div className="grid grid-cols-4 gap-2">
-        <Link href="/prayer#qibla" className="card flex flex-col items-center justify-between gap-1 px-1 py-2.5 text-ink">
+        <Link href="/qibla" className="card flex flex-col items-center justify-between gap-1 px-1 py-2.5 text-ink">
           <svg width="34" height="34" viewBox="0 0 44 44" aria-hidden="true">
             <circle cx="22" cy="22" r="20" fill="#E3EFEA" />
             <circle cx="22" cy="22" r="20" fill="none" stroke="#146B5A" strokeOpacity="0.3" />
