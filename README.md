@@ -18,13 +18,15 @@ Live at **https://ummah.tengorra.com** (deploys from `main` via Vercel). Open it
 
 | Route | What it does |
 |---|---|
-| `/` | Today: next-prayer hero with countdown, Hijri date, Qibla, nearest masjid + next Jamat, continue reading, tasbeeh counter, verse of the day |
-| `/masjid` | Map of masjids within 10 km (OpenStreetMap) with a bottom sheet sorted by next Jamat; city search; GPS |
-| `/masjid/[id]` | Masjid profile: Adhan vs Jamat table, Jumu'ah, facilities, Directions, Remind me |
-| `/masjid/[id]/admin` | Masjid admin publishes Jamat times → Verified badge, reminders update |
-| `/quran` · `/quran/[id]` | 114 surahs, Uthmani text + translation, verse-by-verse audio, tafsir, bookmarks, last-read |
-| `/prayer` | Today / week times, calculation method, Hanafi Asr, azan alert toggles, Qibla compass |
-| `/more` | Location, calculation settings, notifications, reminders list |
+| `/` | Today: Home-masjid Jamat hero with countdown, prayers-logged ring, nearest masjids (manual refresh), verse & hadith of the day, Qibla/Quran/tasbih/map tiles, welcome flow, install prompt |
+| `/masjid` · `/masjid/[id]` · `/masjid/[id]/admin` | Map + list of masjids sorted by next Jamat; profile with Adhan vs Jamat table, Home/Work slots, reminders; admin publishes Jamat times |
+| `/prayer` | Now/Next countdown (Ramadan: sehri/iftar), tap-to-track with streak and 7-day trend, per-prayer alert sheet (azan + minutes before), month calendar with Hijri dates, Islamic dates and sunnah fasts, midnight / last third, excused mode |
+| `/qibla` | Full-screen compass |
+| `/quran` | Surah / Juz / Page / Saved tabs, daily goal + streak, khatam planner, full-text verse search |
+| `/quran/[id]` (`2`, `juz-3`, `page-45`) | Reader: translation or mushaf reading mode, word-by-word, tajweed colours, all Quran.com reciters and translations, repeat/range/speed, themes, memorise mode, share as image |
+| `/library` | Hub: adhkar of the moment, hadith of the day, name of the day |
+| `/library/duas/[slug]` · `/library/hadith` · `/library/names` · `/library/tasbih` · `/library/fasting` · `/library/zakat` | Duas with counters, hadith browser, 99 Names, tasbih, fasting log, zakat calculator |
+| `/more` | Settings: location, calculation, notifications |
 
 ## Data sources (all free)
 
@@ -32,7 +34,10 @@ Live at **https://ummah.tengorra.com** (deploys from `main` via Vercel). Open it
 - **Masjid locations** — [OpenStreetMap](https://www.openstreetmap.org) via the Overpass API (`amenity=place_of_worship` + `religion=muslim`)
 - **City search / reverse geocoding** — Nominatim (OpenStreetMap)
 - **Map tiles** — OpenStreetMap standard tiles (attribution shown on the map)
-- **Quran text, translations, tafsir, audio** — [Quran.com API v4](https://api-docs.quran.com)
+- **Quran text, translations, tafsir, audio, search** — [Quran.com API v4](https://api-docs.quran.com)
+- **Hadith** — [fawazahmed0/hadith-api](https://github.com/fawazahmed0/hadith-api) on jsDelivr (public domain)
+- **Duas & adhkar** — [fitrahive/dua-dhikr](https://github.com/fitrahive/dua-dhikr) (MIT), bundled in `data/dua/`
+- **99 Names, Hijri conversion** — Aladhan
 
 ## How Jamat times work
 
@@ -52,8 +57,10 @@ Reminders and azan toggles use the browser Notifications API and fire from a sch
 
 ```
 app/            routes (all client components)
-components/     TabBar (glass), PrayerHero, MasjidMap (Leaflet), QiblaCompass, ReminderSheet, AudioPlayer, …
-lib/            aladhan.ts, overpass.ts, jamat.ts, reminders.ts, quran.ts, location.ts, prayer.ts, storage.ts
+components/     TabBar (glass), PrayerHero, MasjidMap (Leaflet), QiblaCompass, AudioPlayer, prayer/, quran/, library/, home/
+lib/            aladhan, overpass, jamat, reminders, alerts, tracker, hijri, quran, quranHabits, verseImage, dua, hadith, names, tasbih, fasting, zakat, location, prayer, storage
+data/dua/       bundled dua JSON (MIT)
+box/ server/    Masjid Live audio box (Raspberry Pi) and Icecast relay server
 public/         manifest.json, sw.js, icons/
 scripts/        make-icons.py (regenerates PNG icons with Pillow)
 ```
