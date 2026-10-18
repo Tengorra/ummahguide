@@ -41,7 +41,7 @@ CONF_PATH = os.environ.get("MASJID_LIVE_CONF", "/etc/masjid-live.conf")
 DEFAULTS = {
     "MASJID_ID": "",            # e.g. node-123456 (from the masjid's page in the app)
     "MASJID_NAME": "Masjid",
-    "ICECAST_HOST": "",         # e.g. live.example.com
+    "ICECAST_HOST": "",         # e.g. live.ummah.tengorra.com
     "ICECAST_PORT": "8000",
     "ICECAST_SOURCE_PASSWORD": "",
     "MOUNT": "",                # default /masjid/<MASJID_ID>.mp3

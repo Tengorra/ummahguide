@@ -3,8 +3,16 @@ import "./globals.css";
 import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://ummah.tengorra.com"),
   title: { default: "UmmahGuide", template: "%s · UmmahGuide" },
   description: "Find the next Jamat near you, read the Quran, and keep your prayers — one calm companion for Muslims.",
+  openGraph: {
+    title: "UmmahGuide",
+    description: "Find the next Jamat near you, read the Quran, and keep your prayers.",
+    url: "https://ummah.tengorra.com",
+    siteName: "UmmahGuide",
+    type: "website",
+  },
   manifest: "/manifest.json",
   applicationName: "UmmahGuide",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "UmmahGuide" },

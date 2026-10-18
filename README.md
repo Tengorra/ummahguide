@@ -12,7 +12,7 @@ npm run dev        # http://localhost:3000
 npm run build && npm start   # production (service worker only registers in production)
 ```
 
-Open it on your phone (same Wi-Fi: `http://<your-pc-ip>:3000`) and use "Add to Home Screen" to install.
+Live at **https://ummah.tengorra.com** (deploys from `main` via Vercel). Open it on your phone and use "Add to Home Screen" to install.
 
 ## What's inside
 

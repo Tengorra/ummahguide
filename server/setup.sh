@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # UmmahGuide live server — Icecast behind Caddy (automatic HTTPS). Ubuntu 22.04/24.04, run as root.
 #
-#   DOMAIN=live.example.com SOURCE_PASSWORD='long-random' ADMIN_PASSWORD='another' bash setup.sh
+#   DOMAIN=live.ummah.tengorra.com SOURCE_PASSWORD='long-random' ADMIN_PASSWORD='another' bash setup.sh
 #
 # Point the DNS A record for DOMAIN at this server BEFORE running (Caddy needs it for the certificate).
 set -euo pipefail
 
-: "${DOMAIN:?Set DOMAIN, e.g. DOMAIN=live.example.com}"
+: "${DOMAIN:?Set DOMAIN, e.g. DOMAIN=live.ummah.tengorra.com}"
 : "${SOURCE_PASSWORD:?Set SOURCE_PASSWORD (the password the masjid boxes use)}"
 : "${ADMIN_PASSWORD:?Set ADMIN_PASSWORD (for the Icecast admin page)}"
 

@@ -6,7 +6,7 @@ MASJID_ID=node-123456
 MASJID_NAME=Masjid Al-Noor
 
 # --- Server (the UmmahGuide live server you set up with server/setup.sh)
-ICECAST_HOST=live.example.com
+ICECAST_HOST=live.ummah.tengorra.com
 ICECAST_PORT=8000
 ICECAST_SOURCE_PASSWORD=change-me
 # MOUNT defaults to /masjid/<MASJID_ID>.mp3
