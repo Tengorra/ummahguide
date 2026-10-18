@@ -204,6 +204,19 @@ export const IconDoubleCheck = (p: P) => (
     <path d="m12 16 8-9" />
   </svg>
 );
+export const IconCopy = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+  </svg>
+);
+export const IconTarget = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="5" />
+    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+  </svg>
+);
 export const IconRefresh = (p: P) => (
   <svg {...base(p)}>
     <path d="M20 12a8 8 0 1 1-2.34-5.66" />

@@ -47,6 +47,7 @@ import {
   type Verse,
   type Word,
 } from "@/lib/quran";
+import { logRead, logSeconds } from "@/lib/quranHabits";
 
 function initials(name: string): string {
   return name
@@ -399,23 +400,126 @@ export default function ReaderPage() {
     [tafsir, loadTafsir],
   );
 
-  const onShare = useCallback(async (v: Verse) => {
-    const text = `${v.text_uthmani}\n\n${v.translation}\n— Quran ${v.verse_key} · https://ummah.tengorra.com/quran/${v.chapter_id}?verse=${v.verse_number}`;
-    let msg = "Copied";
-    try {
-      if (typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({ text });
-        msg = "Shared";
-      } else {
-        await navigator.clipboard.writeText(text);
-      }
-    } catch {
-      msg = "Could not share";
-    }
+  const toast = useCallback((msg: string) => {
     setCopied(msg);
     if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
-    copiedTimerRef.current = window.setTimeout(() => setCopied(null), 1600);
+    copiedTimerRef.current = window.setTimeout(() => setCopied(null), 1800);
   }, []);
+
+  const onCopy = useCallback(
+    async (v: Verse) => {
+      const text = `${v.text_uthmani}\n\n${v.translation}\n— Quran ${v.verse_key} · https://ummah.tengorra.com/quran/${v.chapter_id}?verse=${v.verse_number}`;
+      try {
+        await navigator.clipboard.writeText(text);
+        toast("Copied");
+      } catch {
+        toast("Could not copy");
+      }
+    },
+    [toast],
+  );
+
+  const onShare = useCallback(
+    async (v: Verse) => {
+      const ch = chapters.find((c) => c.id === v.chapter_id);
+      toast("Preparing image…");
+      try {
+        const { shareVerseImage } = await import("@/lib/verseImage");
+        const r = await shareVerseImage({ arabic: v.text_uthmani, translation: v.translation, reference: v.verse_key, surahName: ch?.name_simple ?? `Surah ${v.chapter_id}` });
+        toast(r === "shared" ? "Shared" : "Image saved");
+      } catch (e) {
+        if ((e as Error)?.name === "AbortError") setCopied(null);
+        else toast("Could not share");
+      }
+    },
+    [chapters, toast],
+  );
+
+  /* ---------- Reading log (goal, streak, khatam) ---------- */
+
+  const seenRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    seenRef.current = new Set();
+  }, [scopeKey]);
+
+  // Verses that stay ≥60% visible for a moment count as read.
+  useEffect(() => {
+    if (!verses || typeof IntersectionObserver === "undefined") return;
+    const byId = new Map(verses.map((v) => [`verse-${v.id}`, v]));
+    const timers = new Map<string, number>();
+    const flush = (ids: string[]) => {
+      const vs = ids.map((id) => byId.get(id)).filter((v): v is Verse => !!v && !seenRef.current.has(v.verse_key));
+      if (!vs.length) return;
+      for (const v of vs) seenRef.current.add(v.verse_key);
+      logRead(
+        vs.map((v) => v.verse_key),
+        vs.map((v) => v.page_number),
+      );
+    };
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const id = (e.target as HTMLElement).id;
+          if (e.isIntersecting) {
+            if (!timers.has(id)) {
+              timers.set(
+                id,
+                window.setTimeout(() => {
+                  timers.delete(id);
+                  flush([id]);
+                }, 1200),
+              );
+            }
+          } else {
+            const t = timers.get(id);
+            if (t) {
+              window.clearTimeout(t);
+              timers.delete(id);
+            }
+          }
+        }
+      },
+      { threshold: 0.6 },
+    );
+    for (const id of Array.from(byId.keys())) {
+      const el = document.getElementById(id);
+      if (el) io.observe(el);
+    }
+    return () => {
+      io.disconnect();
+      Array.from(timers.values()).forEach((t) => window.clearTimeout(t));
+    };
+  }, [verses, prefs.mode]);
+
+  // Time spent with the reader in the foreground.
+  useEffect(() => {
+    let last = Date.now();
+    const tick = () => {
+      if (document.visibilityState === "visible") logSeconds(Math.min(60, Math.round((Date.now() - last) / 1000)));
+      last = Date.now();
+    };
+    const t = window.setInterval(tick, 30000);
+    const onVis = () => {
+      if (document.visibilityState === "hidden") tick();
+      else last = Date.now();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener("visibilitychange", onVis);
+      tick();
+    };
+  }, [scopeKey]);
+
+  // Memorise mode: a tapped verse is revealed; moving to another verse hides it again.
+  const [revealedId, setRevealedId] = useState<number | null>(null);
+  const onVerseTapMem = useCallback(
+    (id: number) => {
+      if (prefs.memorise) setRevealedId((r) => (r === id ? null : id));
+      onVerseTap(id);
+    },
+    [prefs.memorise, onVerseTap],
+  );
 
   const updatePrefs = (patch: Partial<ReaderPrefs>) => {
     const next = { ...prefs, ...patch };
@@ -525,6 +629,9 @@ export default function ReaderPage() {
             </button>
           ))}
         </div>
+        <button type="button" aria-pressed={prefs.memorise} onClick={() => updatePrefs({ memorise: !prefs.memorise, mode: "translation" })} className="inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[12px] font-bold" style={prefs.memorise ? { background: "var(--qr-accent)", color: "var(--qr-accent-fg)", borderColor: "transparent" } : { borderColor: "var(--qr-line)", background: "var(--qr-bg2)" }}>
+          Memorise
+        </button>
         <button type="button" onClick={() => setSheet("translation")} className="inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[12px] font-semibold" style={{ borderColor: "var(--qr-line)", background: "var(--qr-bg2)" }}>
           {names.translation ? names.translation.split(" (")[0] : "Translation"}
         </button>
@@ -541,6 +648,7 @@ export default function ReaderPage() {
             Tajweed
           </span>
         )}
+
       </div>
 
       <section className="px-4 pt-4" aria-label="Verses">
@@ -618,16 +726,19 @@ export default function ReaderPage() {
                           wordByWord={prefs.wordByWord}
                           transliteration={prefs.transliteration}
                           tajweed={prefs.tajweed}
+                          memorise={prefs.memorise}
+                          revealed={revealedId === v.id}
                           bookmarked={isBookmarked(v.verse_key, bookmarks)}
                           isPlaying={playing && loadedKey === v.verse_key}
                           tafsir={v.id === current ? tafsir : null}
                           copied={v.id === current ? copied : null}
-                          onSelect={onVerseTap}
+                          onSelect={onVerseTapMem}
                           onPlay={onVersePlay}
                           onBookmark={onBookmark}
                           onToggleTafsir={toggleTafsir}
                           onLoadTafsir={loadTafsir}
                           onShare={onShare}
+                          onCopy={onCopy}
                         />
                       </ol>
                     </li>

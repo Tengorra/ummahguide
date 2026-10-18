@@ -181,6 +181,7 @@ export default function ReaderSettings({
                     ["wordByWord", "Word by word", "Meaning under every Arabic word (translation mode)"],
                     ["transliteration", "Transliteration", "Latin spelling under each word — needs word by word"],
                     ["tajweed", "Tajweed colours", "Colour the letters by their tajweed rule"],
+                    ["memorise", "Memorise mode", "Hide each verse until you tap it, translation off — pair with a range loop"],
                   ] as const
                 ).map(([k, label, sub]) => (
                   <div key={k} className="flex items-center gap-3 rounded-2xl px-3.5 py-3" style={{ background: "var(--qr-bg2)" }}>

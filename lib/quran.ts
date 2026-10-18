@@ -52,8 +52,9 @@ export type ReaderPrefs = {
   transliteration: boolean; // word-by-word transliteration under each word
   tajweed: boolean;
   translationSize: number; // px
+  memorise: boolean; // hide each verse until tapped; translation hidden
 };
-export const DEFAULT_PREFS: ReaderPrefs = { mode: "translation", theme: "night", wordByWord: false, transliteration: false, tajweed: false, translationSize: 14 };
+export const DEFAULT_PREFS: ReaderPrefs = { mode: "translation", theme: "night", wordByWord: false, transliteration: false, tajweed: false, translationSize: 14, memorise: false };
 
 export function getPrefs(): ReaderPrefs {
   return { ...DEFAULT_PREFS, ...readJSON<Partial<ReaderPrefs>>(KEYS.prefs, {}) };
@@ -432,6 +433,25 @@ export function fetchChapterInfo(id: number): Promise<string> {
     });
   infoMemo.set(id, p);
   return p;
+}
+
+/* ---------- Search ---------- */
+
+export type SearchHit = { verse_key: string; chapter: number; verse: number; arabic: string; translation: string };
+
+type RawSearch = { search?: { total_results?: number; results?: { verse_key: string; text?: string; translations?: { text?: string }[] }[] } };
+
+/** Full-text search across Arabic and translations (Quran.com search, English UI). */
+export async function searchVerses(q: string, size = 25): Promise<{ total: number; hits: SearchHit[] }> {
+  const j = await getJSON<RawSearch>(`${API}/search?q=${encodeURIComponent(q)}&size=${size}&page=1&language=en`, "Search is unavailable right now");
+  const results = j.search?.results ?? [];
+  return {
+    total: j.search?.total_results ?? results.length,
+    hits: results.map((r) => {
+      const [c, v] = r.verse_key.split(":").map(Number);
+      return { verse_key: r.verse_key, chapter: c, verse: v, arabic: stripHtml(r.text ?? ""), translation: stripHtml(r.translations?.[0]?.text ?? "") };
+    }),
+  };
 }
 
 /* ---------- Tajweed rendering ---------- */

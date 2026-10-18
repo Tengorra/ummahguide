@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { IconBookmark, IconClose, IconPause, IconPlay, IconShare } from "@/components/Icons";
+import { IconBookmark, IconClose, IconCopy, IconPause, IconPlay, IconShare } from "@/components/Icons";
 import { AyahMark, TajweedText, WordByWord } from "./ArabicText";
 import type { Verse, Word } from "@/lib/quran";
 
@@ -16,7 +16,8 @@ export type VerseRowProps = {
   wordByWord: boolean;
   transliteration: boolean;
   tajweed: boolean;
-  hideTranslation?: boolean;
+  memorise: boolean;
+  revealed: boolean; // memorise mode: this verse has been tapped open
   bookmarked: boolean;
   isPlaying: boolean;
   tafsir: TafsirState | null;
@@ -27,6 +28,7 @@ export type VerseRowProps = {
   onToggleTafsir: (v: Verse) => void;
   onLoadTafsir: (v: Verse) => void;
   onShare: (v: Verse) => void;
+  onCopy: (v: Verse) => void;
 };
 
 /** Translation-mode row. Memoised so audio time updates don't re-render 286 rows. */
@@ -39,7 +41,8 @@ const VerseRow = memo(function VerseRow({
   wordByWord,
   transliteration,
   tajweed,
-  hideTranslation,
+  memorise,
+  revealed,
   bookmarked,
   isPlaying,
   tafsir,
@@ -50,8 +53,11 @@ const VerseRow = memo(function VerseRow({
   onToggleTafsir,
   onLoadTafsir,
   onShare,
+  onCopy,
 }: VerseRowProps) {
   const tafsirOpen = isCurrent && tafsir?.key === verse.verse_key;
+  const hidden = memorise && !revealed;
+  const hideTranslation = memorise;
 
   return (
     <li
@@ -59,7 +65,12 @@ const VerseRow = memo(function VerseRow({
       className="rounded-[22px] border p-4 transition-colors"
       style={isCurrent ? { borderColor: "color-mix(in srgb, var(--qr-accent) 35%, transparent)", background: "color-mix(in srgb, var(--qr-accent) 9%, transparent)" } : { borderColor: "transparent" }}
     >
-      <button type="button" onClick={() => onSelect(verse.id)} aria-current={isCurrent ? "true" : undefined} className="block w-full rounded-[14px] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/60">
+      <button type="button" onClick={() => onSelect(verse.id)} aria-current={isCurrent ? "true" : undefined} className="relative block w-full overflow-hidden rounded-[14px] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500/60">
+        {hidden && (
+          <span className="absolute inset-0 z-10 flex items-center justify-center rounded-[14px] text-[12px] font-bold" style={{ background: "var(--qr-bg2)", color: "var(--qr-muted)" }}>
+            Verse {verse.verse_number} · tap to reveal
+          </span>
+        )}
         {wordByWord ? (
           <WordByWord verse={verse} words={words} arabicSize={arabicSize} transliteration={transliteration} tajweed={tajweed} />
         ) : (
@@ -88,7 +99,10 @@ const VerseRow = memo(function VerseRow({
               Tafsir
             </button>
             <span className="flex-1" />
-            <button type="button" onClick={() => onShare(verse)} aria-label="Share verse" className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "var(--qr-bg2)", color: "var(--qr-fg)" }}>
+            <button type="button" onClick={() => onCopy(verse)} aria-label="Copy verse text" className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "var(--qr-bg2)", color: "var(--qr-fg)" }}>
+              <IconCopy size={19} />
+            </button>
+            <button type="button" onClick={() => onShare(verse)} aria-label="Share verse as image" className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: "var(--qr-bg2)", color: "var(--qr-fg)" }}>
               <IconShare size={20} />
             </button>
           </div>

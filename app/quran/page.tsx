@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { IconBookmark, IconChevronRight, IconClose, IconSearch } from "@/components/Icons";
-import { fetchChapters, fetchJuzs, getBookmarks, getLastRead, revelationLabel, type Bookmark, type Chapter, type Juz, type LastRead } from "@/lib/quran";
+import HabitsCard from "@/components/quran/HabitsCard";
+import { fetchChapters, fetchJuzs, getBookmarks, getLastRead, revelationLabel, searchVerses, type Bookmark, type Chapter, type Juz, type LastRead, type SearchHit } from "@/lib/quran";
 
 type Tab = "surah" | "juz" | "page" | "saved";
 
@@ -19,6 +20,8 @@ export default function QuranHomePage() {
   const [last, setLast] = useState<LastRead | null>(null);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [pageInput, setPageInput] = useState("");
+  const [hits, setHits] = useState<{ q: string; total: number; hits: SearchHit[] } | null>(null);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     setLast(getLastRead());
@@ -58,6 +61,22 @@ export default function QuranHomePage() {
     );
   }, [chapters, query]);
 
+  const q = query.trim();
+  useEffect(() => {
+    if (q.length < 3 || /^\d+$/.test(q)) {
+      setHits(null);
+      return;
+    }
+    const t = window.setTimeout(() => {
+      setSearching(true);
+      searchVerses(q)
+        .then((r) => setHits({ q, ...r }))
+        .catch(() => setHits({ q, total: 0, hits: [] }))
+        .finally(() => setSearching(false));
+    }, 450);
+    return () => window.clearTimeout(t);
+  }, [q]);
+
   const lastChapter = last && chapters ? chapters.find((c) => c.id === last.chapter) : undefined;
   const nameOf = (id: number) => chapters?.find((c) => c.id === id)?.name_simple ?? `Surah ${id}`;
 
@@ -96,6 +115,8 @@ export default function QuranHomePage() {
         </Link>
       )}
 
+      <HabitsCard />
+
       <div role="tablist" aria-label="Browse by" className="mt-4 grid grid-cols-4 gap-1 rounded-2xl bg-white/10 p-1">
         {(
           [
@@ -118,13 +139,39 @@ export default function QuranHomePage() {
             <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ivory/50">
               <IconSearch size={19} />
             </span>
-            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search surah name or number" enterKeyHint="search" autoComplete="off" className="h-12 w-full rounded-full border border-white/10 bg-white/5 pl-11 pr-11 text-[15px] text-ivory placeholder:text-ivory/40 focus:border-gold-500/50 focus:outline-none [&::-webkit-search-cancel-button]:hidden" />
+            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Surah name, number, or any word (e.g. patience)" enterKeyHint="search" autoComplete="off" className="h-12 w-full rounded-full border border-white/10 bg-white/5 pl-11 pr-11 text-[15px] text-ivory placeholder:text-ivory/40 focus:border-gold-500/50 focus:outline-none [&::-webkit-search-cancel-button]:hidden" />
             {query && (
               <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-ivory/60 active:bg-white/10">
                 <IconClose size={18} />
               </button>
             )}
           </label>
+
+          {q.length >= 3 && !/^\d+$/.test(q) && (
+            <section className="mt-4" aria-label="Verses matching your search">
+              <p className="label px-1 text-gold-500">{searching ? "Searching verses…" : hits ? (hits.total ? `${hits.total} verse${hits.total === 1 ? "" : "s"} mention “${hits.q}”` : `No verses mention “${hits.q}”`) : ""}</p>
+              {hits && hits.hits.length > 0 && (
+                <ul className="mt-2 space-y-2">
+                  {hits.hits.map((h) => (
+                    <li key={h.verse_key}>
+                      <Link href={`/quran/${h.chapter}?verse=${h.verse}`} className="block rounded-[18px] border border-white/10 bg-white/5 p-3 active:bg-white/10">
+                        {h.arabic && (
+                          <p className="font-arabic line-clamp-2 text-right text-[19px] leading-[1.8] text-ivory" dir="rtl" lang="ar">
+                            {h.arabic}
+                          </p>
+                        )}
+                        <p className="mt-1 line-clamp-3 text-[13px] text-ivory/70">{h.translation}</p>
+                        <p className="mt-1.5 text-[11px] font-bold text-gold-500">
+                          {nameOf(h.chapter)} · {h.verse_key}
+                        </p>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {filtered.length > 0 && <p className="label mt-4 px-1 text-ivory/50">Surahs</p>}
+            </section>
+          )}
 
           <section className="mt-4" aria-label="All surahs">
             {error && !chapters && (
@@ -148,7 +195,7 @@ export default function QuranHomePage() {
                 ))}
               </ul>
             )}
-            {chapters && filtered.length === 0 && <p className="px-2 py-8 text-center text-[14px] text-ivory/55">No surah matches &ldquo;{query}&rdquo;.</p>}
+            {chapters && filtered.length === 0 && !hits && <p className="px-2 py-8 text-center text-[14px] text-ivory/55">No surah matches &ldquo;{query}&rdquo;.</p>}
             {chapters && filtered.length > 0 && (
               <ul className="divide-y divide-white/[0.06]">
                 {filtered.map((c) => (
