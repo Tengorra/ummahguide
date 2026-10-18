@@ -8,6 +8,10 @@ import VerseOfDay from "@/components/VerseOfDay";
 import TasbeehCard from "@/components/TasbeehCard";
 import MyMasjids from "@/components/MyMasjids";
 import NearYou from "@/components/NearYou";
+import HadithCard from "@/components/home/HadithCard";
+import InstallPrompt from "@/components/home/InstallPrompt";
+import TodayRing from "@/components/home/TodayRing";
+import Welcome from "@/components/home/Welcome";
 import { useLocationOnDemand } from "@/lib/location";
 import { METHODS, cell, compassLabel, fetchQibla, useDayTimes, useSettings } from "@/lib/aladhan";
 import { buildJamatDay, usePublished } from "@/lib/jamat";
@@ -65,10 +69,15 @@ export default function HomePage() {
             ) : null}
           </span>
         </div>
-        <Link href="/more" aria-label="Settings" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink/10 bg-white text-em-900 shadow-card">
-          <IconGear />
-        </Link>
+        <div className="flex items-center gap-2">
+          <TodayRing />
+          <Link href="/more" aria-label="Settings" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink/10 bg-white text-em-900 shadow-card">
+            <IconGear />
+          </Link>
+        </div>
       </header>
+
+      <InstallPrompt />
 
       {day ? (
         <PrayerHero timings={day.timings} place={loc.city} methodName={methodName} jamat={heroJamat} tz={day.tz} />
@@ -128,6 +137,9 @@ export default function HomePage() {
           <span className="text-[9px] font-semibold text-muted">all masjids</span>
         </Link>
       </div>
+
+      <HadithCard />
+      <Welcome />
     </main>
   );
 }
