@@ -13,7 +13,61 @@ const KEYS = {
   arabicSize: "ug.quran.arabicSize",
   last: "ug.quran.last",
   bookmarks: "ug.quran.bookmarks",
+  prefs: "ug.quran.prefs",
+  recitations: "ug.quran.recitations",
+  translationsList: "ug.quran.translations",
+  juzs: "ug.quran.juzs",
 } as const;
+
+/* ---------- Reader scope: a surah, a juz or a mushaf page ---------- */
+
+export type Scope = { type: "chapter"; id: number } | { type: "juz"; id: number } | { type: "page"; id: number };
+
+/** "2" → surah 2 · "juz-3" → juz 3 · "page-45" → page 45. Null when malformed. */
+export function parseScope(raw: string | undefined): Scope | null {
+  if (!raw) return null;
+  const m = raw.match(/^(juz|page)-(\d+)$/);
+  if (m) {
+    const n = Number(m[2]);
+    if (m[1] === "juz" && n >= 1 && n <= 30) return { type: "juz", id: n };
+    if (m[1] === "page" && n >= 1 && n <= 604) return { type: "page", id: n };
+    return null;
+  }
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= 114 ? { type: "chapter", id: n } : null;
+}
+
+export function scopePath(s: Scope): string {
+  return s.type === "chapter" ? `/quran/${s.id}` : `/quran/${s.type}-${s.id}`;
+}
+
+/* ---------- Reader preferences (one object) ---------- */
+
+export type ReaderMode = "translation" | "reading";
+export type ReaderTheme = "night" | "sepia" | "light";
+export type ReaderPrefs = {
+  mode: ReaderMode;
+  theme: ReaderTheme;
+  wordByWord: boolean;
+  transliteration: boolean; // word-by-word transliteration under each word
+  tajweed: boolean;
+  translationSize: number; // px
+};
+export const DEFAULT_PREFS: ReaderPrefs = { mode: "translation", theme: "night", wordByWord: false, transliteration: false, tajweed: false, translationSize: 14 };
+
+export function getPrefs(): ReaderPrefs {
+  return { ...DEFAULT_PREFS, ...readJSON<Partial<ReaderPrefs>>(KEYS.prefs, {}) };
+}
+export function setPrefs(p: ReaderPrefs): void {
+  writeJSON(KEYS.prefs, p);
+}
+
+/** Colours for each theme — applied as CSS variables on the reader root. */
+export const THEMES: Record<ReaderTheme, { bg: string; bg2: string; fg: string; muted: string; line: string; accent: string; accentFg: string; scheme: "dark" | "light" }> = {
+  night: { bg: "#0C1A17", bg2: "#132622", fg: "#F4F1EA", muted: "rgba(244,241,234,0.6)", line: "rgba(255,255,255,0.08)", accent: "#C9A44C", accentFg: "#0C1A17", scheme: "dark" },
+  sepia: { bg: "#F3EADA", bg2: "#EADFCA", fg: "#2B2419", muted: "rgba(43,36,25,0.6)", line: "rgba(43,36,25,0.1)", accent: "#8A6B1F", accentFg: "#FFF8EA", scheme: "light" },
+  light: { bg: "#FFFFFF", bg2: "#F4F1EA", fg: "#141A18", muted: "rgba(20,26,24,0.58)", line: "rgba(20,26,24,0.09)", accent: "#0B3D33", accentFg: "#F4F1EA", scheme: "light" },
+};
 
 export type Chapter = {
   id: number;
@@ -29,11 +83,21 @@ export type Verse = {
   id: number;
   verse_key: string; // "2:255"
   verse_number: number;
+  chapter_id: number;
   juz_number: number;
+  page_number: number;
   text_uthmani: string;
+  text_tajweed: string; // Uthmani with <tajweed class=…> tags, "" when unavailable
   translation: string;
   audio: string | null;
 };
+
+/** One word for word-by-word mode. */
+export type Word = { text: string; translation: string; transliteration: string };
+
+export type Recitation = { id: number; name: string; style: string };
+export type TranslationResource = { id: number; name: string; author: string; language: string };
+export type Juz = { juz_number: number; first: string; chapters: { id: number; from: number; to: number }[] };
 
 export type LastRead = { chapter: number; verse: number; name: string; versesCount?: number };
 
@@ -49,14 +113,25 @@ export type Bookmark = {
 
 export type VerseByKey = { text_uthmani: string; translation: string; verse_key: string; chapterName?: string };
 
+type RawWord = {
+  char_type_name?: string;
+  text_uthmani?: string;
+  text?: string;
+  translation?: { text?: string };
+  transliteration?: { text?: string | null };
+};
+
 type RawVerse = {
   id: number;
   verse_key: string;
   verse_number: number;
   juz_number: number;
+  page_number?: number;
   text_uthmani: string;
+  text_uthmani_tajweed?: string;
   translations?: { text: string }[];
   audio?: { url: string } | null;
+  words?: RawWord[];
 };
 
 type RawPagination = { next_page?: number | null; total_pages?: number };
@@ -76,8 +151,8 @@ export const RECITERS = [
 
 export const DEFAULT_TRANSLATION = 131;
 export const DEFAULT_RECITER = 7;
-export const ARABIC_SIZES = [24, 27, 32] as const;
-export const DEFAULT_ARABIC_SIZE = 27;
+export const ARABIC_SIZES = [22, 25, 28, 32, 36] as const;
+export const DEFAULT_ARABIC_SIZE = 28;
 
 export const BISMILLAH = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
 
@@ -207,56 +282,206 @@ function toVerse(raw: RawVerse): Verse {
     id: raw.id,
     verse_key: raw.verse_key,
     verse_number: raw.verse_number,
+    chapter_id: Number(raw.verse_key.split(":")[0]),
     juz_number: raw.juz_number,
+    page_number: raw.page_number ?? 0,
     text_uthmani: raw.text_uthmani,
+    text_tajweed: raw.text_uthmani_tajweed ?? "",
     translation: stripHtml(raw.translations?.[0]?.text ?? ""),
     audio: audioUrl(raw.audio?.url),
   };
 }
 
-function versesPageUrl(id: number, translationId: number, reciterId: number, page: number): string {
-  return `${API}/verses/by_chapter/${id}?language=en&words=false&translations=${translationId}&fields=text_uthmani&audio=${reciterId}&per_page=50&page=${page}`;
+function scopeBase(scope: Scope): string {
+  return `${API}/verses/by_${scope.type === "chapter" ? "chapter" : scope.type}/${scope.id}`;
 }
 
-async function loadChapterPages(id: number, translationId: number, reciterId: number): Promise<Verse[]> {
-  type Page = { verses: RawVerse[]; pagination?: RawPagination };
-  const fail = "Could not load this surah";
-  const first = await getJSON<Page>(versesPageUrl(id, translationId, reciterId, 1), fail);
-  const out: Verse[] = first.verses.map(toVerse);
+function versesPageUrl(scope: Scope, translationId: number, reciterId: number, page: number): string {
+  return `${scopeBase(scope)}?language=en&words=false&translations=${translationId}&fields=text_uthmani,text_uthmani_tajweed,page_number&audio=${reciterId}&per_page=50&page=${page}`;
+}
 
+/** Walks every API page of a verses endpoint. */
+async function loadAllPages<T>(url: (page: number) => string, fail: string, map: (raw: RawVerse) => T): Promise<T[]> {
+  type Page = { verses: RawVerse[]; pagination?: RawPagination };
+  const first = await getJSON<Page>(url(1), fail);
+  const out: T[] = first.verses.map(map);
   const totalPages = first.pagination?.total_pages;
   if (typeof totalPages === "number" && totalPages > 1) {
-    // Known page count: fetch the rest in parallel (Al-Baqarah is 6 pages).
-    const rest = await Promise.all(
-      Array.from({ length: totalPages - 1 }, (_, i) => getJSON<Page>(versesPageUrl(id, translationId, reciterId, i + 2), fail)),
-    );
-    for (const p of rest) out.push(...p.verses.map(toVerse));
+    const rest = await Promise.all(Array.from({ length: totalPages - 1 }, (_, i) => getJSON<Page>(url(i + 2), fail)));
+    for (const p of rest) out.push(...p.verses.map(map));
   } else {
-    // Fallback: follow next_page until null.
     let next = first.pagination?.next_page ?? null;
     let guard = 0;
     while (next && guard++ < 20) {
-      const p = await getJSON<Page>(versesPageUrl(id, translationId, reciterId, next), fail);
-      out.push(...p.verses.map(toVerse));
+      const p = await getJSON<Page>(url(next), fail);
+      out.push(...p.verses.map(map));
       next = p.verses.length ? (p.pagination?.next_page ?? null) : null;
     }
   }
-  return out.sort((a, b) => a.verse_number - b.verse_number);
+  return out;
 }
 
 const verseMemo = new Map<string, Promise<Verse[]>>();
 
-/** All verses of a surah (every page), with the chosen translation and reciter audio. Memoised for the session. */
-export function fetchChapterVerses(id: number, translationId: number, reciterId: number): Promise<Verse[]> {
-  const key = `${id}.${translationId}.${reciterId}`;
+/** All verses in a scope (surah / juz / page), with the chosen translation and reciter audio. Memoised for the session. */
+export function fetchVerses(scope: Scope, translationId: number, reciterId: number): Promise<Verse[]> {
+  const key = `${scope.type}.${scope.id}.${translationId}.${reciterId}`;
   const hit = verseMemo.get(key);
   if (hit) return hit;
-  const p = loadChapterPages(id, translationId, reciterId).catch((e: unknown) => {
-    verseMemo.delete(key);
-    throw e;
-  });
+  const p = loadAllPages((page) => versesPageUrl(scope, translationId, reciterId, page), "Could not load these verses", toVerse)
+    .then((vs) => vs.sort((a, b) => a.id - b.id))
+    .catch((e: unknown) => {
+      verseMemo.delete(key);
+      throw e;
+    });
   verseMemo.set(key, p);
   return p;
+}
+
+/** Back-compat for callers that only know surahs. */
+export function fetchChapterVerses(id: number, translationId: number, reciterId: number): Promise<Verse[]> {
+  return fetchVerses({ type: "chapter", id }, translationId, reciterId);
+}
+
+const wordMemo = new Map<string, Promise<Map<string, Word[]>>>();
+
+/** Word-by-word data for a scope, keyed by verse_key. Fetched only when the mode is on (it is several times the size of the verses). */
+export function fetchWords(scope: Scope): Promise<Map<string, Word[]>> {
+  const key = `${scope.type}.${scope.id}`;
+  const hit = wordMemo.get(key);
+  if (hit) return hit;
+  const url = (page: number) => `${scopeBase(scope)}?language=en&words=true&word_fields=text_uthmani&translation_fields=text&per_page=50&page=${page}`;
+  const p = loadAllPages(url, "Could not load word-by-word", (raw) => {
+    const words: Word[] = (raw.words ?? [])
+      .filter((w) => w.char_type_name !== "end")
+      .map((w) => ({ text: w.text_uthmani ?? w.text ?? "", translation: w.translation?.text ?? "", transliteration: w.transliteration?.text ?? "" }));
+    return [raw.verse_key, words] as const;
+  })
+    .then((pairs) => new Map(pairs))
+    .catch((e: unknown) => {
+      wordMemo.delete(key);
+      throw e;
+    });
+  wordMemo.set(key, p);
+  return p;
+}
+
+/* ---------- Catalogues (cached a week) ---------- */
+
+/** Reciters we show first; everything else from the API follows alphabetically. */
+const FEATURED_RECITERS = [7, 2, 1, 3, 4, 6, 9, 12, 5, 8, 10, 11];
+
+export function fetchRecitations(): Promise<Recitation[]> {
+  return cached(KEYS.recitations, 7 * 24 * 3600_000, async () => {
+    const j = await getJSON<{ recitations: { id: number; reciter_name: string; style?: string | null }[] }>(`${API}/resources/recitations?language=en`, "Could not load reciters");
+    const list = j.recitations.map((r) => ({ id: r.id, name: r.reciter_name, style: r.style ?? "" }));
+    return list.sort((a, b) => {
+      const ia = FEATURED_RECITERS.indexOf(a.id);
+      const ib = FEATURED_RECITERS.indexOf(b.id);
+      if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      return a.name.localeCompare(b.name);
+    });
+  });
+}
+
+/** Languages shown first in the translation picker. */
+export const FEATURED_LANGUAGES = ["english", "urdu", "arabic", "french", "indonesian", "turkish", "bengali", "spanish", "german", "malay", "hindi", "persian", "somali", "swahili"];
+
+export function fetchTranslationList(): Promise<TranslationResource[]> {
+  return cached(KEYS.translationsList, 7 * 24 * 3600_000, async () => {
+    const j = await getJSON<{ translations: { id: number; name: string; author_name: string; language_name: string }[] }>(`${API}/resources/translations?language=en`, "Could not load translations");
+    return j.translations.map((t) => ({ id: t.id, name: t.name, author: t.author_name, language: t.language_name.toLowerCase() }));
+  });
+}
+
+export function fetchJuzs(): Promise<Juz[]> {
+  return cached(KEYS.juzs, 30 * 24 * 3600_000, async () => {
+    const j = await getJSON<{ juzs: { juz_number: number; verse_mapping: Record<string, string> }[] }>(`${API}/juzs`, "Could not load the juz list");
+    const seen = new Set<number>();
+    const out: Juz[] = [];
+    for (const z of j.juzs) {
+      if (seen.has(z.juz_number)) continue;
+      seen.add(z.juz_number);
+      const chapters = Object.entries(z.verse_mapping)
+        .map(([c, range]) => {
+          const [from, to] = range.split("-").map(Number);
+          return { id: Number(c), from, to };
+        })
+        .sort((a, b) => a.id - b.id);
+      out.push({ juz_number: z.juz_number, first: chapters.length ? `${chapters[0].id}:${chapters[0].from}` : "1:1", chapters });
+    }
+    return out.sort((a, b) => a.juz_number - b.juz_number);
+  });
+}
+
+const infoMemo = new Map<number, Promise<string>>();
+
+/** Surah introduction (English), as plain paragraphs. */
+export function fetchChapterInfo(id: number): Promise<string> {
+  const hit = infoMemo.get(id);
+  if (hit) return hit;
+  const p = getJSON<{ chapter_info?: { text?: string } }>(`${API}/chapters/${id}/info?language=en`, "Could not load the surah introduction")
+    .then((j) => {
+      const text = stripHtml(j.chapter_info?.text ?? "", true);
+      if (!text) throw new Error("No introduction available");
+      return text;
+    })
+    .catch((e: unknown) => {
+      infoMemo.delete(id);
+      throw e;
+    });
+  infoMemo.set(id, p);
+  return p;
+}
+
+/* ---------- Tajweed rendering ---------- */
+
+/** quran.com tajweed rule classes → colours (the standard mushaf colour code). */
+export const TAJWEED_COLORS: Record<string, string> = {
+  ham_wasl: "#AAAAAA",
+  slnt: "#AAAAAA",
+  laam_shamsiyah: "#AAAAAA",
+  madda_normal: "#537FFF",
+  madda_permissible: "#4050FF",
+  madda_necessary: "#000EBC",
+  madda_obligatory: "#2144C1",
+  qalaqah: "#DD0008",
+  ikhafa_shafawi: "#D500B7",
+  ikhafa: "#9400A8",
+  idgham_shafawi: "#58B800",
+  iqlab: "#26BFFD",
+  idgham_ghunnah: "#169777",
+  idgham_wo_ghunnah: "#169200",
+  idgham_mutajanisayn: "#A1A1A1",
+  idgham_mutaqaribayn: "#A1A1A1",
+  ghunnah: "#FF7E1E",
+};
+
+export const TAJWEED_LEGEND: { cls: string; label: string }[] = [
+  { cls: "ghunnah", label: "Ghunnah" },
+  { cls: "ikhafa", label: "Ikhfa" },
+  { cls: "iqlab", label: "Iqlab" },
+  { cls: "idgham_ghunnah", label: "Idgham with ghunnah" },
+  { cls: "idgham_wo_ghunnah", label: "Idgham without ghunnah" },
+  { cls: "qalaqah", label: "Qalqalah" },
+  { cls: "madda_normal", label: "Madd 2 counts" },
+  { cls: "madda_permissible", label: "Madd 2/4/6" },
+  { cls: "madda_necessary", label: "Madd 6 counts" },
+  { cls: "ham_wasl", label: "Silent / hamzat wasl" },
+];
+
+export type TajweedSegment = { text: string; cls: string | null };
+
+/** "<tajweed class=ikhafa>نْ</tajweed>" → segments; anything else in the markup is dropped. */
+export function parseTajweed(html: string): TajweedSegment[] {
+  const out: TajweedSegment[] = [];
+  const re = /<tajweed\s+class=["']?([a-z_]+)["']?>([\s\S]*?)<\/tajweed>|<[^>]+>|([^<]+)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    if (m[1] !== undefined) out.push({ text: decodeEntities(m[2]), cls: m[1] });
+    else if (m[3] !== undefined) out.push({ text: decodeEntities(m[3]), cls: null });
+  }
+  return out;
 }
 
 const tafsirMemo = new Map<string, Promise<string>>();
@@ -305,7 +530,7 @@ export async function fetchVerseByKey(key: string, translationId: number): Promi
 
 export function getTranslationId(): number {
   const v = readJSON<number>(KEYS.translation, DEFAULT_TRANSLATION);
-  return TRANSLATIONS.some((t) => t.id === v) ? v : DEFAULT_TRANSLATION;
+  return Number.isInteger(v) && v > 0 ? v : DEFAULT_TRANSLATION;
 }
 export function setTranslationId(id: number): void {
   writeJSON(KEYS.translation, id);
@@ -313,7 +538,7 @@ export function setTranslationId(id: number): void {
 
 export function getReciterId(): number {
   const v = readJSON<number>(KEYS.reciter, DEFAULT_RECITER);
-  return RECITERS.some((r) => r.id === v) ? v : DEFAULT_RECITER;
+  return Number.isInteger(v) && v > 0 ? v : DEFAULT_RECITER;
 }
 export function setReciterId(id: number): void {
   writeJSON(KEYS.reciter, id);
@@ -321,7 +546,10 @@ export function setReciterId(id: number): void {
 
 export function getArabicSize(): number {
   const v = readJSON<number>(KEYS.arabicSize, DEFAULT_ARABIC_SIZE);
-  return (ARABIC_SIZES as readonly number[]).includes(v) ? v : DEFAULT_ARABIC_SIZE;
+  if ((ARABIC_SIZES as readonly number[]).includes(v)) return v;
+  // older builds stored 24/27/32 — snap to the nearest step
+  if (typeof v === "number") return (ARABIC_SIZES as readonly number[]).reduce((best, s) => (Math.abs(s - v) < Math.abs(best - v) ? s : best), DEFAULT_ARABIC_SIZE);
+  return DEFAULT_ARABIC_SIZE;
 }
 export function setArabicSize(px: number): void {
   writeJSON(KEYS.arabicSize, px);
