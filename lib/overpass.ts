@@ -48,31 +48,63 @@ type OverpassEl = {
   tags?: Record<string, string>;
 };
 
-async function runOverpass(query: string): Promise<OverpassEl[]> {
-  let lastErr: unknown;
-  // Two passes over the mirrors: public Overpass servers are often briefly overloaded.
-  for (let pass = 0; pass < 2; pass++) {
+async function askMirror(ep: string, query: string, signal: AbortSignal): Promise<OverpassEl[]> {
+  const r = await withTimeout(
+    fetch(ep, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `data=${encodeURIComponent(query)}`,
+      signal,
+    }),
+    15000,
+  );
+  if (!r.ok) throw new Error(`Overpass ${r.status}`);
+  const j = await r.json();
+  if (!Array.isArray(j.elements)) throw new Error("Overpass: bad response");
+  return j.elements as OverpassEl[];
+}
+
+/** First mirror to answer wins; the others are cancelled. Public Overpass servers are often briefly overloaded. */
+function anyMirror(query: string): Promise<OverpassEl[]> {
+  const ctrl = new AbortController();
+  return new Promise((resolve, reject) => {
+    let pending = ENDPOINTS.length;
+    let lastErr: unknown;
     for (const ep of ENDPOINTS) {
-      try {
-        const r = await withTimeout(
-          fetch(ep, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: `data=${encodeURIComponent(query)}`,
-          }),
-          20000,
-        );
-        if (!r.ok) throw new Error(`Overpass ${r.status}`);
-        const j = await r.json();
-        if (!Array.isArray(j.elements)) throw new Error("Overpass: bad response");
-        return j.elements as OverpassEl[];
-      } catch (e) {
-        lastErr = e;
-      }
+      askMirror(ep, query, ctrl.signal).then(
+        (els) => {
+          ctrl.abort();
+          resolve(els);
+        },
+        (e) => {
+          lastErr = e;
+          if (--pending === 0) reject(lastErr instanceof Error ? lastErr : new Error("Overpass unavailable"));
+        },
+      );
     }
+  });
+}
+
+async function runOverpass(query: string): Promise<OverpassEl[]> {
+  try {
+    return await anyMirror(query);
+  } catch (e) {
+    // One more round after a short pause, then give up so the UI can offer Retry.
     await new Promise((res) => setTimeout(res, 1500));
+    try {
+      return await anyMirror(query);
+    } catch {
+      throw e;
+    }
   }
-  throw lastErr instanceof Error ? lastErr : new Error("Overpass unavailable");
+}
+
+/** The last masjid list we fetched (any cell), with distances recomputed — shown while a fresh fetch is in flight. */
+export function lastMosques(lat: number, lng: number, maxKm = 40): Mosque[] {
+  const last = readJSON<Mosque[]>(LAST_KEY, []);
+  if (!Array.isArray(last) || !last.length) return [];
+  const withDist = last.map((m) => ({ ...m, distanceKm: haversineKm(lat, lng, m.lat, m.lng) })).sort((a, b) => a.distanceKm - b.distanceKm);
+  return withDist[0].distanceKm <= maxKm ? withDist : [];
 }
 
 function toMosque(el: OverpassEl, lat: number, lng: number): Mosque | null {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { IconChevronRight, IconMasjid, IconNavigate, IconRefresh } from "./Icons";
-import { directionsUrl, fetchMosques, mosqueCellKey, type Mosque } from "@/lib/overpass";
+import { directionsUrl, fetchMosques, lastMosques, mosqueCellKey, type Mosque } from "@/lib/overpass";
 import { buildJamatDay, loadPublished, nextJamat, useNow } from "@/lib/jamat";
 import { haversineKm } from "@/lib/aladhan";
 import { useMyMasjids, type MyMasjid } from "@/lib/mymasjids";
@@ -54,17 +54,39 @@ export default function NearYou({
   const now = useNow(30000);
   const [mosques, setMosques] = useState<Mosque[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [slow, setSlow] = useState(false);
+  const [stale, setStale] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const cellKey = mosqueCellKey(lat, lng);
 
   useEffect(() => {
     let alive = true;
     setFailed(false);
+    setSlow(false);
+    // Show what we already know (last fetch, if it was nearby) while the fresh list loads.
+    const last = lastMosques(lat, lng);
+    if (last.length) {
+      setMosques(last);
+      setStale(true);
+    }
+    const slowTimer = window.setTimeout(() => alive && setSlow(true), 8000);
     fetchMosques(lat, lng)
-      .then((list) => alive && setMosques(list))
-      .catch(() => alive && setFailed(true));
+      .then((list) => {
+        if (!alive) return;
+        setMosques(list);
+        setStale(false);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setFailed(true);
+      })
+      .finally(() => {
+        window.clearTimeout(slowTimer);
+        if (alive) setSlow(false);
+      });
     return () => {
       alive = false;
+      window.clearTimeout(slowTimer);
     };
     // Refetch only when the phone crosses into a new ~5 km cell, or on Retry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -117,26 +139,32 @@ export default function NearYou({
       </div>
 
       {!mosques && !failed && (
-        <div className="flex flex-col gap-2 px-4 pb-4 pt-2">
+        <div className="flex flex-col gap-2 px-4 pb-4 pt-2" aria-busy="true" aria-label="Finding masjids">
           {Array.from({ length: count }).map((_, i) => (
             <div key={i} className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-em-100" />
+              <div className="h-10 w-10 animate-pulse rounded-xl bg-em-100" />
               <div className="flex flex-1 flex-col gap-1.5">
-                <div className="h-3.5 w-2/3 rounded bg-ivory" />
-                <div className="h-3 w-1/2 rounded bg-ivory" />
+                <div className="h-3.5 w-2/3 animate-pulse rounded bg-ivory" />
+                <div className="h-3 w-1/2 animate-pulse rounded bg-ivory" />
               </div>
             </div>
           ))}
         </div>
       )}
 
+      {(slow || (stale && !failed)) && (
+        <p className="m-0 px-4 pb-2 pt-1 text-[12px] text-muted">
+          {stale && !slow ? "Showing your last masjid list while the map updates…" : "The masjid map server is slow tonight — still looking…"}
+        </p>
+      )}
+
       {failed && (
         <div className="flex items-center justify-between gap-3 px-4 pb-4 pt-1">
-          <p className="m-0 text-[13px] text-muted">The masjid map server is busy right now.</p>
+          <p className="m-0 text-[13px] text-muted">{mosques?.length ? "Couldn’t refresh — showing your last list." : "The masjid map server is busy right now."}</p>
           <button
             type="button"
             onClick={() => {
-              setMosques(null);
+              if (!stale) setMosques(null);
               setAttempt((a) => a + 1);
             }}
             className="chip-active h-9 shrink-0"

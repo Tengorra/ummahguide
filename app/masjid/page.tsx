@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { IconBell, IconLocate, IconMasjid, IconNavigate, IconSearch } from "@/components/Icons";
 import { geocodeCity, useLocationOnDemand, type Loc } from "@/lib/location";
 import { haversineKm, useDayTimes, useSettings } from "@/lib/aladhan";
-import { directionsUrl, facilitiesOf, fetchMosques, mosqueCellKey, type Mosque } from "@/lib/overpass";
+import { directionsUrl, facilitiesOf, fetchMosques, lastMosques, mosqueCellKey, type Mosque } from "@/lib/overpass";
 import { buildJamatDay, loadPublished, nextJamat, useNow, type NextJamat } from "@/lib/jamat";
 import { useMyMasjids } from "@/lib/mymasjids";
 import { countdown, fmt12 } from "@/lib/prayer";
@@ -38,6 +38,9 @@ export default function MasjidFinderPage() {
   useEffect(() => {
     let alive = true;
     setError(null);
+    // Last known list straight away (if it was nearby), then the fresh one.
+    const last = lastMosques(center.lat, center.lng);
+    if (last.length) setMosques((cur) => cur ?? last);
     fetchMosques(center.lat, center.lng)
       .then((list) => {
         if (!alive) return;
