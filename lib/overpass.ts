@@ -124,16 +124,30 @@ export function mosqueCellKey(lat: number, lng: number): string {
   return `${snap(lat).toFixed(2)},${snap(lng).toFixed(2)}`;
 }
 
+/** Our own cached relay (app/api/mosques): one Overpass call per cell per day, served from the CDN after that. */
+async function fromRelay(clat: number, clng: number, radiusM: number): Promise<Mosque[]> {
+  const r = await withTimeout(fetch(`/api/mosques?lat=${clat.toFixed(2)}&lng=${clng.toFixed(2)}&r=${radiusM}`), 28000);
+  if (!r.ok) throw new Error(`relay ${r.status}`);
+  const j = (await r.json()) as { mosques?: { id: string; name: string; lat: number; lng: number; tags: Record<string, string> }[] };
+  if (!Array.isArray(j.mosques)) throw new Error("relay: bad response");
+  return j.mosques.map((m) => ({ ...m, distanceKm: haversineKm(clat, clng, m.lat, m.lng) }));
+}
+
 export async function fetchMosques(lat: number, lng: number, radiusM = 15000): Promise<Mosque[]> {
   const clat = snap(lat);
   const clng = snap(lng);
   const key = `ug.mosques.${clat.toFixed(2)}.${clng.toFixed(2)}.${radiusM}`;
   const list = await cached(key, 24 * 3600_000, async () => {
-    const q = `[out:json][timeout:20];
+    try {
+      return await fromRelay(clat, clng, radiusM);
+    } catch {
+      // Relay down (or running the app outside Vercel): go straight to the mirrors.
+      const q = `[out:json][timeout:20];
 nwr["amenity"="place_of_worship"]["religion"="muslim"](around:${radiusM},${clat},${clng});
 out center tags;`;
-    const els = await runOverpass(q);
-    return els.map((e) => toMosque(e, clat, clng)).filter((m): m is Mosque => !!m);
+      const els = await runOverpass(q);
+      return els.map((e) => toMosque(e, clat, clng)).filter((m): m is Mosque => !!m);
+    }
   });
   // distances relative to the current point (cache may be from a nearby point)
   const withDist = list.map((m) => ({ ...m, distanceKm: haversineKm(lat, lng, m.lat, m.lng) })).sort((a, b) => a.distanceKm - b.distanceKm);
